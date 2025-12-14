@@ -7,13 +7,11 @@ TropicalALAN_Lab_PTY is a research and engineering group dedicated to advancing 
 
 ## Security Notice - Encryption Implementation
 
-**IMPORTANT:** For security reasons, the encryption and decryption implementation files have been excluded from this repository. 
+**IMPORTANT:** This repository does not include cryptographic implementation files.
 
-* You must develop your own encryption system** to secure data transmission between stations and NAS.
+Secure data transmission between stations and the NAS must be implemented using standard, well-established tools (for example, SSH-based transfer such as scp or rsync over SSH, or a VPN solution). Users must not implement custom or ad-hoc cryptographic algorithms.
 
-The repository provides the framework and integration points, but the actual cryptographic implementation is your responsibility. This ensures each deployment has unique security characteristics.
-
-Refer to the `code/README.md` and `NAScode/README.md` for more details on missing components.
+This repository provides the framework and integration points for secure data handling, while encryption, key management, and credential storage are deployment-specific and must be handled externally using trusted system-level solutions.
 
 # Interoperability Code 
 
