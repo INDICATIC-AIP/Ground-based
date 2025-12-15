@@ -74,6 +74,24 @@ After cloning this repository on the station:
 
 You can now begin installation following each module’s README.
 
+- **Python version tested:** Python 3.10.12 — the system has been tested with this interpreter version; using Python 3.10.12 is recommended for compatibility.
+
+**Minimal Usage**
+
+- **Clone:**
+	- `git clone https://github.com/INDICATIC-AIP/Ground-base.git`
+	- `cd Ground-base`
+- **Install (example):**
+	- `pip3 install -r station-requirements.txt`
+	- If you need UI or NAS dependencies, also run:
+		- `pip3 install -r ui-requirements.txt`
+		- `pip3 install -r nas-requirements.txt`
+- **Verify:**
+	- `python3 --version` to confirm a Python interpreter is available.
+	- `python3 -m pip check` to detect broken or missing dependencies.
+	- Optionally run a non-destructive script to confirm scripts execute, for example:
+		- `python3 station_rename.py --help` or `python3 station_rename.py` (review the script before running).
+
 # Configuring the Station Name
 To ensure the code uses the correct internal paths:
 1. On the Desktop, open the script named station_rename.py.
