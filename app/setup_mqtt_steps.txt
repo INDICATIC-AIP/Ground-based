@@ -1,0 +1,118 @@
+CONFIGURACIÓN MQTT PARA ALPY - PASOS SIMPLES
+==============================================
+
+PASO 1: INSTALAR MOSQUITTO-CLIENTS EN EL JETSON
+-----------------------------------------------
+En tu Jetson (donde estás conectado), ejecuta:
+
+sudo apt update
+sudo apt install mosquitto-clients
+
+Después de la instalación, verifica:
+which mosquitto_pub
+which mosquitto_sub
+
+Una vez instalado, prueba básica:
+# Probar si funciona (esto debería dar error porque no hay broker aún)
+mosquitto_pub -h localhost -t "test" -m "hola"
+
+ COMPLETADO - Error "Connection refused" es normal
+
+PASO 2: CONFIGURAR EL BROKER MQTT
+----------------------------------
+Opciones:
+- Opción A: En tu laptop/WSL2 (recomendado para pruebas)
+- Opción B: En el servidor desktop-c9jv5od (para producción)
+
+INSTALACIÓN EN WSL2:
+sudo apt update
+sudo apt install mosquitto mosquitto-clients
+sudo systemctl start mosquitto
+
+VERIFICAR QUE FUNCIONA:
+sudo systemctl status mosquitto
+
+ COMPLETADO - Broker funcionando en WSL2
+
+PASO 3: OBTENER IP DE TAILSCALE
+--------------------------------
+En WSL2 ejecutar:
+tailscale ip -4
+
+Resultado: 100.107.97.68
+
+ COMPLETADO - IP obtenida
+
+PASO 4: PROBAR COMUNICACIÓN BÁSICA
+-----------------------------------
+Desde WSL2:
+mosquitto_pub -h 100.107.97.68 -t "test/prueba" -m "mensaje desde WSL2"
+
+Desde Jetson:
+mosquitto_pub -h 100.107.97.68 -t "jetson/test" -m "mensaje desde Jetson"
+
+ COMPLETADO - Comunicación funcionando
+
+PASO 5: CONFIGURAR MQTT COORDINATOR EN JETSON
+----------------------------------------------
+Archivo: app/monitors/mqtt_coordinator.sh
+Cambiar estas líneas:
+
+MQTT_BROKER="100.107.97.68"  # IP Tailscale WSL2
+MQTT_PORT="1883"
+
+PASO 6: EJECUTAR MONITOR ALPY
+------------------------------
+En Jetson ejecutar:
+cd /ruta/del/proyecto
+bash app/monitors/mqtt_coordinator.sh
+
+PASO 7: ESCUCHAR MENSAJES (WSL2)
+---------------------------------
+Abrir terminal nueva en WSL2:
+mosquitto_sub -h 100.107.97.68 -t "jetson/#"
+
+Deberías ver mensajes como:
+- jetson/alpy/log
+- jetson/alpy/fits
+- jetson/status
+
+PASO 8: CREAR RECEPTOR PYTHON
+------------------------------
+Crear: app/mqtt_receiver.py
+Instalar: pip install paho-mqtt
+Ejecutar: python3 app/mqtt_receiver.py
+
+PASO 9: MEJORAR PARSING DEL LOG
+--------------------------------
+Modificar: app/monitors/alpy_monitor.sh
+Parsear mensajes específicos del txt:
+- "Received temperature : X.X C"
+- "CCD temperature reached!"
+- "Taking exposition of X seconds"
+- "Image saved in /path/file.fits"
+
+PROBLEMAS COMUNES:
+------------------
+- Firewall: sudo ufw allow 1883
+- Tailscale: verificar que ambos dispositivos están conectados
+- Permisos: sudo chmod +x app/monitors/*.sh
+- Cliente desconectado: verificar IP Tailscale
+
+PRÓXIMOS PASOS:
+---------------
+[ ] PASO 5: Configurar mqtt_coordinator.sh en Jetson
+[ ] PASO 6: Probar monitor ALPY
+[ ] PASO 7: Crear receptor Python
+[ ] PASO 8: Mejorar parsing de datos
+[ ] PASO 9: Probar sistema completo
+
+COMANDOS ÚTILES:
+----------------
+Ver todos los logs MQTT: mosquitto_sub -h 100.107.97.68 -t "#" -v
+Ver log ALPY: tail -f /tmp/logalpy.txt
+Ver estado broker: sudo systemctl status mosquitto
+Matar procesos: pkill -f mqtt_coordinator.sh
+Reiniciar broker: sudo systemctl restart mosquitto
+
+ESTADO ACTUAL:  Pasos 1-4 completados, comunicación MQTT funcionando 

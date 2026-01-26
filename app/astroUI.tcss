@@ -1,0 +1,76 @@
+.sidebar {
+        width: 20%;
+        min-width: 20;
+    }
+    #station-banner {
+        width: 75%;
+    }
+    
+    .camera-info {
+        width: 20%;
+    }
+    
+    .images-section {
+        width: 75%;
+    }
+
+    .camera-control {
+        width: 10%;
+    }
+
+    .container {
+    height: auto;
+    width: auto;
+    }
+
+    Switch {
+        height: auto;
+        width: auto;
+    }
+
+    .label {
+        height: 3;
+        content-align: center middle;
+        width: auto;
+    }
+
+    #custom-design {
+        background: darkslategrey;
+    }
+
+    /* Colores para estaciones */
+    .station-jetson1 {
+        color: #4A90E2;
+    }
+
+    .station-jetson2 {
+        color: #7ED321;
+    }
+
+    .station-jetson3 {
+        color: #F5A623;
+    }
+
+    .station-jetson4 {
+        color: #EF4444;
+    }
+
+    .station-jetson5 {
+        color: #A855F7;
+    }
+
+    .station-jetson6 {
+        color: #06B6D4;
+    }
+
+    .temp-display {
+        text-style: bold;
+        height: 3;
+        content-align: center middle;
+        background: $primary 20%;
+        border: solid $primary;
+    }
+    ListItem, ListItem Label {
+    text-wrap: wrap;
+}
+
