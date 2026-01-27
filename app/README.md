@@ -90,17 +90,17 @@ dos2unix camera_on_off.sh status_cameras.sh
 
 - **Usage:**
    ```bash
-   ================================================
-        MENU CAMARAS        [ YYYY-MM-DD HH:MM:SS ]
-   ================================================
-   1) Configurar ciclo por intervalo
-   2) Encender cámaras
-   3) Apagar cámaras
-   4) Estado de cámaras
-   0) Salir
+   "================================================"
+   "        CAMERA MENU        [ $now ]"
+   "================================================"
+   "1) Configure cycle by interval"
+   "2) Turn cameras on"
+   "3) Turn cameras off"
+   "4) Camera status"
+   "0) Exit"
     ```
 
-   - Configurar ciclo por intervalo: Allows configuration of an automatic camera. Operation cycle based on a predefined or user-defined time interval.
+   - Configure cycle by interval: Allows configuration of an automatic camera. Operation cycle based on a predefined or user-defined time interval.
    Available intervals:
       - 3 minutes
       - 5 minutes
@@ -117,7 +117,7 @@ dos2unix camera_on_off.sh status_cameras.sh
       - EndDefaultAllHour
       - EndDefaultAllMinute
 
-   - Enceder cámaras: Powers on cameras using the configured power control system.
+   - Turn cameras on: Powers on cameras using the configured power control system.
    Camera selection submenu:
       1) Todas
       2) Alpy
@@ -128,7 +128,7 @@ dos2unix camera_on_off.sh status_cameras.sh
     Executed command:
       - ./camera_on_off.sh on <camera_list>
 
-   - Apagar cámaras: Powers off selected cameras.
+   - Turn cameras off: Powers off selected cameras.
    Camera selection submenu:
       1) Todas
       2) Alpy
@@ -139,11 +139,11 @@ dos2unix camera_on_off.sh status_cameras.sh
    Executed command:
       - ./camera_on_off.sh off <camera_list>
 
-   - Estado de cámaras: Displays the current status of all cameras.
+   - Camera status: Displays the current status of all cameras.
    Executed command:
       - ./status_cameras.sh status
 
-   - Salir: Exits the interactive menu safely.
+   - Exit: Exits the interactive menu safely.
 
 
 ### Topics by Camera

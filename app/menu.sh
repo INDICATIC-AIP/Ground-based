@@ -1,74 +1,74 @@
 #!/bin/bash
 # ==============================================
-# SCRIPT PRINCIPAL - MENÚ DE CONTROL DE CÁMARAS
+# MAIN SCRIPT - CAMERA CONTROL MENU
 # ==============================================
-# Este script muestra un menú interactivo para:
-# - Configurar ciclos automáticos por intervalo
-# - Encender / apagar cámaras
-# - Consultar estado de cámaras
+# This script displays an interactive menu to:
+# - Configure automatic cycles by interval
+# - Turn cameras on/off
+# - Check camera status
 #
-# Usa scripts auxiliares:
-# - variables.sh          → configuración global
-# - camera_on_off.sh      → encendido/apagado
-# - status_cameras.sh    → estado de cámaras
+# Uses auxiliary scripts:
+# - variables.sh          → global configuration
+# - camera_on_off.sh      → power control
+# - status_cameras.sh     → camera status
 # ==============================================
 
 
 # ===============================
-# RUTAS BASE DEL SCRIPT
+# BASE PATHS OF THE SCRIPT
 # ===============================
-# SCRIPT_DIR obtiene la ruta absoluta del directorio
-# donde se encuentra este script, sin importar desde
-# dónde se ejecute.
+# SCRIPT_DIR gets the absolute path of the directory
+# where this script is located, regardless of
+# where it is executed from.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Archivo de variables compartidas
+# Shared variables file
 VARIABLES_FILE="$SCRIPT_DIR/../AutoRun/variables.sh"
 
-# Script encargado de encender/apagar cámaras
+# Script responsible for turning cameras on/off
 CAMERA_SCRIPT="$SCRIPT_DIR/camera_on_off.sh"
 
-# Script encargado de mostrar estado de cámaras
+# Script responsible for showing camera status
 STATUS_SCRIPT="$SCRIPT_DIR/status_cameras.sh"
 
 
 # ===============================
-# VERIFICACIÓN CRÍTICA
-# ===============================
-# Si variables.sh no existe, el sistema no puede continuar
-# porque contiene configuración esencial (horarios, flags, etc.)
+# CRITICAL CHECK
+# =============================== 
+# If variables.sh does not exist, the system cannot continue
+# because it contains essential configuration (schedules, flags, etc.)
 if [ ! -f "$VARIABLES_FILE" ]; then
-    echo "ERROR: No se encontró variables.sh"
-    echo "Ruta buscada:"
+    echo "ERROR: variables.sh not found"
+    echo "Searched path:"
     echo "$VARIABLES_FILE"
-    read -p "ENTER para salir..."
+    read -p "Press ENTER to exit..."
     exit 1
 fi
 
 
 # ===============================
-# FUNCIÓN: CONFIGURAR CICLO AUTOMÁTICO
+# FUNCTION: CONFIGURE AUTOMATIC CYCLE
 # ===============================
-# Permite definir un intervalo de tiempo en minutos
-# y guarda el horario de inicio y fin en variables.sh
+# Allows setting a time interval in minutes
+# and saves start and end times in variables.sh
 set_cycle_interval() {
     clear
     echo "======================================"
-    echo "   CICLO AUTOMÁTICO POR INTERVALO"
+    echo "   AUTOMATIC CYCLE BY INTERVAL"
     echo "======================================"
-    echo "1) 3 minutos"
-    echo "2) 5 minutos"
-    echo "3) 10 minutos"
-    echo "4) 30 minutos"
-    echo "5) 1 hora"
-    echo "6) 3 horas"
-    echo "7) 5 horas"
-    echo "8) Personalizado (minutos)"
-    echo "0) Volver"
+    echo "1) 3 minutes"
+    echo "2) 5 minutes"
+    echo "3) 10 minutes"
+    echo "4) 30 minutes"
+    echo "5) 1 hour"
+    echo "6) 3 hours"
+    echo "7) 5 hours"
+    echo "8) Custom (minutes)"
+    echo "0) Back"
     echo "--------------------------------------"
-    read -p "Seleccione una opción: " opt
+    read -p "Select an option: " opt
 
-    # Asignación de minutos según la opción elegida
+    # Assign minutes based on selected option
     case $opt in
         1) minutes=3 ;;
         2) minutes=5 ;;
@@ -77,22 +77,22 @@ set_cycle_interval() {
         5) minutes=60 ;;
         6) minutes=180 ;;
         7) minutes=300 ;;
-        8) read -p "Ingrese minutos: " minutes ;;
+        8) read -p "Enter minutes: " minutes ;;
         0) return ;;
-        *) echo "Opción inválida"; sleep 1; return ;;
+        *) echo "Invalid option"; sleep 1; return ;;
     esac
 
-    # Hora actual (inicio del ciclo)
+    # Current time (cycle start)
     start_time=$(date +%H:%M)
     start_hour=$(date +%H)
     start_min=$(date +%M)
 
-    # Hora final calculada en base a los minutos elegidos
+    # End time calculated based on chosen minutes
     end_time=$(date -d "+$minutes minutes" +%H:%M)
     end_hour=$(date -d "+$minutes minutes" +%H)
     end_min=$(date -d "+$minutes minutes" +%M)
 
-    # Se actualizan las variables dentro de variables.sh
+    # Update variables inside variables.sh
     sed -i \
         -e "s/^BegingDefaultAllHour=.*/BegingDefaultAllHour=\"$start_hour\"/" \
         -e "s/^BegingDefaultAllMinute=.*/BegingDefaultAllMinute=\"$start_min\"/" \
@@ -101,47 +101,47 @@ set_cycle_interval() {
         "$VARIABLES_FILE"
 
     echo ""
-    echo "✅ Ciclo configurado correctamente"
-    echo "Inicio : $start_time"
-    echo "Fin    : $end_time"
+    echo "✅ Cycle configured successfully"
+    echo "Start : $start_time"
+    echo "End   : $end_time"
     echo ""
-    read -p "ENTER para continuar..."
+    read -p "Press ENTER to continue..."
 }
 
 
 # ===============================
-# SUBMENÚ DE CÁMARAS + CONFIRMACIÓN
+# CAMERA SUBMENU + CONFIRMATION
 # ===============================
-# Esta función recibe la acción ("on" o "off")
-# y permite seleccionar qué cámaras se afectan
+# This function receives the action ("on" or "off")
+# and allows selecting which cameras are affected
 camera_menu() {
     local action="$1"
     local action_text
 
-    # Texto legible según la acción
+    # Human-readable text based on the action
     if [ "$action" = "on" ]; then
-        action_text="ENCENDER"
+        action_text="TURN ON"
     else
-        action_text="APAGAR"
+        action_text="TURN OFF"
     fi
 
     clear
     echo "======================================"
-    echo "   $action_text CÁMARAS"
+    echo "   $action_text CAMERAS"
     echo "======================================"
-    echo "1) Todas"
+    echo "1) All"
     echo "2) Alpy"
     echo "3) QHY"
     echo "4) Nikon"
-    echo "0) Volver"
+    echo "0) Back"
     echo "--------------------------------------"
-    read -p "Seleccione una opción: " cam
+    read -p "Select an option: " cam
 
-    # Definición de cámaras según selección
+    # Define cameras based on selection
     case $cam in
         1)
             cams="alpy qhy nikon"
-            cams_text="TODAS LAS CÁMARAS"
+            cams_text="ALL CAMERAS"
             ;;
         2)
             cams="alpy"
@@ -159,60 +159,60 @@ camera_menu() {
             return
             ;;
         *)
-            echo "Opción inválida"
+            echo "Invalid option"
             sleep 1
             return
             ;;
     esac
 
-    # Confirmación del usuario antes de ejecutar
+    # User confirmation before executing
     echo ""
-    echo "⚠️  CONFIRMACIÓN"
+    echo "⚠️  CONFIRMATION"
     echo "--------------------------------------"
-    echo "Está a punto de $action_text: $cams_text"
+    echo "You are about to $action_text: $cams_text"
     echo ""
-    read -p "¿Está seguro? (s/N): " confirm
+    read -p "Are you sure? (y/N): " confirm
 
-    # Solo ejecuta si el usuario confirma con S o s
-    if [[ "$confirm" =~ ^[sS]$ ]]; then
+    # Only execute if user confirms with Y or y
+    if [[ "$confirm" =~ ^[yY]$ ]]; then
         "$CAMERA_SCRIPT" "$action" $cams
 
-        # Verifica si el script falló
+        # Check if the script failed
         if [ $? -ne 0 ]; then
             echo ""
-            echo "🚨 ERROR: no se pudo ejecutar la acción"
+            echo "🚨 ERROR: action could not be executed"
         else
             echo ""
-            echo "✅ Acción ejecutada correctamente"
+            echo "✅ Action executed successfully"
         fi
     else
         echo ""
-        echo "❌ Acción cancelada por el usuario"
+        echo "❌ Action cancelled by user"
     fi
 
     echo ""
-    read -p "ENTER para continuar..."
+    read -p "Press ENTER to continue..."
 }
 
 
 # ===============================
-# MENÚ PRINCIPAL
+# MAIN MENU
 # ===============================
-# Bucle infinito hasta que el usuario seleccione salir
+# Infinite loop until user chooses to exit
 while true; do
     clear
     now=$(date "+%Y-%m-%d %H:%M:%S")
 
     echo "================================================"
-    echo "        MENU CAMARAS        [ $now ]"
+    echo "        CAMERA MENU        [ $now ]"
     echo "================================================"
-    echo "1) Configurar ciclo por intervalo"
-    echo "2) Encender cámaras"
-    echo "3) Apagar cámaras"
-    echo "4) Estado de cámaras"
-    echo "0) Salir"
+    echo "1) Configure cycle by interval"
+    echo "2) Turn cameras on"
+    echo "3) Turn cameras off"
+    echo "4) Camera status"
+    echo "0) Exit"
     echo "------------------------------------------------"
-    read -p "Seleccione una opción: " choice
+    read -p "Select an option: " choice
 
     case $choice in
         1) set_cycle_interval ;;
@@ -220,14 +220,14 @@ while true; do
         3) camera_menu "off" ;;
         4)
             "$STATUS_SCRIPT" status
-            read -p "ENTER para continuar..."
+            read -p "Press ENTER to continue..."
             ;;
         0)
-            echo "Saliendo..."
+            echo "Exiting..."
             exit 0
             ;;
         *)
-            echo "Opción inválida"
+            echo "Invalid option"
             sleep 1
             ;;
     esac
