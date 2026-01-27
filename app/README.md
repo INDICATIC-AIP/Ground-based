@@ -76,6 +76,76 @@ The system uses a hierarchical topic structure:
 <station_name>/<camera_type>/<event_type>
 ```
 
+
+### Camera Control Menu (Bash)
+#### `menu.sh`
+The system includes a Bash-based interactive menu designed to operate and manage cameras.
+This menu provides a centralized interface for configuring camera operation cycles, controlling camera power, and querying camera status.
+
+Important: For the menu and auxiliary scripts to work correctly, the camera control scripts (`camera_on_off.sh` and `status_cameras.sh`) must have execution permissions.
+This can be ensured by running:
+chmod +x camera_on_off.sh status_cameras.sh
+If the scripts were edited on Windows, convert them to Unix format to avoid line-ending issues:
+dos2unix camera_on_off.sh status_cameras.sh
+
+- **Usage:**
+   ```bash
+   ================================================
+        MENU CAMARAS        [ YYYY-MM-DD HH:MM:SS ]
+   ================================================
+   1) Configurar ciclo por intervalo
+   2) Encender cámaras
+   3) Apagar cámaras
+   4) Estado de cámaras
+   0) Salir
+    ```
+
+   - Configurar ciclo por intervalo: Allows configuration of an automatic camera. Operation cycle based on a predefined or user-defined time interval.
+   Available intervals:
+      - 3 minutes
+      - 5 minutes
+      - 10 minutes
+      - 30 minutes
+      - 1 hour
+      - 3 hours
+      - 5 hours
+      - Custom (user-defined minutes)
+        
+   Updated variables in `variables.sh`:
+      - BegingDefaultAllHour
+      - BegingDefaultAllMinute
+      - EndDefaultAllHour
+      - EndDefaultAllMinute
+
+   - Enceder cámaras: Powers on cameras using the configured power control system.
+   Camera selection submenu:
+      1) Todas
+      2) Alpy
+      3) QHY
+      4) Nikon
+      0) Volver
+         
+    Executed command:
+      - ./camera_on_off.sh on <camera_list>
+
+   - Apagar cámaras: Powers off selected cameras.
+   Camera selection submenu:
+      1) Todas
+      2) Alpy
+      3) QHY
+      4) Nikon
+      0) Volver
+         
+   Executed command:
+      - ./camera_on_off.sh off <camera_list>
+
+   - Estado de cámaras: Displays the current status of all cameras.
+   Executed command:
+      - ./status_cameras.sh status
+
+   - Salir: Exits the interactive menu safely.
+
+
 ### Topics by Camera
 
 **ALPY Camera:**
