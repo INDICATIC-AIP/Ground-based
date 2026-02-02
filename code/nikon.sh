@@ -6,6 +6,7 @@
 
 #Configure camera to shoot in RAW format
 gphoto2 --set-config capturetarget=10
+gphoto2 --set-config shutterspeed=10.0000s
 #10        DARK
 #10        FLAT
 #1/4000    Offset
