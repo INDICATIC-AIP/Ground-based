@@ -97,6 +97,7 @@ dos2unix camera_on_off.sh status_cameras.sh
    "2) Turn cameras on"
    "3) Turn cameras off"
    "4) Camera status"
+   "5) Configure sun times automation"
    "0) Exit"
     ```
 
@@ -142,6 +143,21 @@ dos2unix camera_on_off.sh status_cameras.sh
    - Camera status: Displays the current status of all cameras.
    Executed command:
       - ./status_cameras.sh status
+
+   - Configure sun times automation: Configures automatic dome opening/closing based on astronomical twilight times.
+   Twilight types available:
+      - Civil twilight (sun at -6°)
+      - Nautical twilight (sun at -12°)
+      - Astronomical twilight (sun at -18°)
+         
+   This feature uses `sun_time_broker.py` to:
+      - Calculate precise twilight times for Panama City location
+      - Publish MQTT commands to ESP32 devices for dome control
+      - Schedule cron jobs for automatic execution
+         
+   Executed command:
+      - python3 sun_time_broker.py --info <twilight_type>  # Display times
+      - python3 sun_time_broker.py "" <twilight_type>      # Schedule automation
 
    - Exit: Exits the interactive menu safely.
 
@@ -341,6 +357,40 @@ SSH command execution module:
 #### `astroUI.tcss`
 Textual CSS stylesheet for UI theming and layout.
 
+#### `sun_time_broker.py`
+Astronomical dome automation script:
+- **Features:**
+  - Calculates civil, nautical, and astronomical twilight times for Panama City
+  - Publishes MQTT commands to ESP32 devices for automated dome control
+  - Schedules cron jobs for automatic execution at calculated times
+  - Supports multiple twilight definitions for different observation requirements
+- **Twilight Types:**
+  - **Civil Twilight**: Sun at -6° (standard sunrise/sunset)
+  - **Nautical Twilight**: Sun at -12° (deeper twilight)
+  - **Astronomical Twilight**: Sun at -18° (darkest conditions)
+- **Usage:**
+  ```bash
+  # Display twilight times for information
+  python3 sun_time_broker.py --info civil
+  python3 sun_time_broker.py --info nautical
+  python3 sun_time_broker.py --info astronomical
+  
+  # Schedule automatic dome control (executes action and programs cron)
+  python3 sun_time_broker.py "" civil        # Use civil twilight
+  python3 sun_time_broker.py "" nautical     # Use nautical twilight
+  python3 sun_time_broker.py "" astronomical # Use astronomical twilight
+  
+  # Manual execution (for testing)
+  python3 sun_time_broker.py open civil      # Force dome open
+  python3 sun_time_broker.py close nautical  # Force dome close
+  ```
+- **MQTT Topics:**
+  - `domo/command` - Broadcast to all ESP32 devices
+  - `domo/qhy/command` - QHY device specific
+  - `domo/alpy/command` - ALPY device specific
+  - `domo/nikon/command` - Nikon device specific
+- **Configuration:** Uses `.env` file for MQTT broker credentials and loads from `/home/indicatic-e1/Desktop/.env`
+
 ### 3. Camera Control Code (INDIcode)
 
 #### `indi.cpp`
@@ -419,6 +469,20 @@ USB Detection → status_cameras.sh → File List → MQTT → Data Manager → 
 UI User Action → SSH Command → Station → camera_on_off.sh → Kasa Strip → Power On/Off
 ```
 
+### 4. Dome Automation Flow
+
+```
+Menu Selection → sun_time_broker.py → Twilight Calculation → MQTT Command → ESP32 → Dome Motor
+     ↓                                                                        ↓
+Cron Schedule → Automatic Execution → Dome Control → Observation Protection → Data Collection
+```
+
+**Twilight-Based Automation:**
+- **Morning Twilight Start**: Dome closes automatically (night observation begins)
+- **Evening Twilight End**: Dome opens automatically (daytime maintenance)
+- **Cron Scheduling**: Automatic rescheduling for next twilight period
+- **MQTT Integration**: Commands sent to ESP32 devices via configured broker
+
 ## Requirements
 
 ### Station (Jetson Orin Nano)
@@ -448,7 +512,7 @@ UI User Action → SSH Command → Station → camera_on_off.sh → Kasa Strip �
 
 **Python Packages:**
 ```bash
-pip install paho-mqtt paramiko textual python-dotenv
+pip install paho-mqtt paramiko textual python-dotenv astral
 ```
 
 **MQTT Broker:**
@@ -692,6 +756,41 @@ CAMERAS_LOG="/tmp/camerasMQTT.txt"
    dm = AstroDataManager()
    dm.start_mqtt(broker="<ip>", username="<user>", password="<pass>")
    # Check for connection messages
+   ```
+
+### Dome Automation Not Working
+
+1. **Check Twilight Times:**
+   ```bash
+   python3 sun_time_broker.py --info civil
+   # Verify times are reasonable for Panama City
+   ```
+
+2. **Test MQTT Connection:**
+   ```bash
+   python3 sun_time_broker.py open civil
+   # Check if ESP32 devices receive the command
+   ```
+
+3. **Verify Cron Jobs:**
+   ```bash
+   crontab -l | grep sun_time_broker
+   # Should show scheduled jobs with correct paths
+   ```
+
+4. **Check Log Files:**
+   ```bash
+   tail -f /var/log/domo_control.log
+   # Monitor for execution errors or MQTT failures
+   ```
+
+5. **Validate Environment Variables:**
+   ```bash
+   # Ensure .env file exists and contains:
+   SERVER_IP=<broker_ip>
+   MQTT_PORT=1883
+   SERVER_USER=<username>
+   SERVER_PASSWORD=<password>
    ```
 
 ## Security Considerations
