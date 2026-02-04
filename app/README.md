@@ -97,11 +97,12 @@ dos2unix camera_on_off.sh status_cameras.sh
    "2) Turn cameras on"
    "3) Turn cameras off"
    "4) Camera status"
-   "5) Configure sun times automation"
+   "5) Configure cameras"
+   "6) Dome control"
    "0) Exit"
     ```
 
-   - Configure cycle by interval: Allows configuration of an automatic camera. Operation cycle based on a predefined or user-defined time interval.
+   1) Configure cycle by interval: Allows configuration of an automatic camera. Operation cycle based on a predefined or user-defined time interval.
    Available intervals:
       - 3 minutes
       - 5 minutes
@@ -112,13 +113,13 @@ dos2unix camera_on_off.sh status_cameras.sh
       - 5 hours
       - Custom (user-defined minutes)
         
-   Updated variables in `variables.sh`:
+      Updated variables in `variables.sh`:
       - BegingDefaultAllHour
       - BegingDefaultAllMinute
       - EndDefaultAllHour
       - EndDefaultAllMinute
 
-   - Turn cameras on: Powers on cameras using the configured power control system.
+   2) Turn cameras on: Powers on cameras using the configured power control system.
    Camera selection submenu:
       1) Todas
       2) Alpy
@@ -126,10 +127,10 @@ dos2unix camera_on_off.sh status_cameras.sh
       4) Nikon
       0) Volver
          
-    Executed command:
+      Executed command:
       - ./camera_on_off.sh on <camera_list>
 
-   - Turn cameras off: Powers off selected cameras.
+   3) Turn cameras off: Powers off selected cameras.
    Camera selection submenu:
       1) Todas
       2) Alpy
@@ -137,29 +138,43 @@ dos2unix camera_on_off.sh status_cameras.sh
       4) Nikon
       0) Volver
          
-   Executed command:
+      Executed command:
       - ./camera_on_off.sh off <camera_list>
 
-   - Camera status: Displays the current status of all cameras.
-   Executed command:
+   4) Camera status: Displays the current status of all cameras. Executed command:
       - ./status_cameras.sh status
 
-   - Configure sun times automation: Configures automatic dome opening/closing based on astronomical twilight times.
-   Twilight types available:
+   5) Configure cameras: The Configure Cameras menu allows the user to adjust exposure/capture time and temperature settings for one or more cameras from a centralized interface.
+
+      - Select all cameras or individual devices
+      - Set exposure (10s, minimum, or custom)
+      - Exposure is auto-converted per camera:
+         - Alpy → seconds
+         - QHY → microseconds
+         - Nikon → shutter speed (e.g. 1/4000)
+      - Set temperature for Alpy & QHY (preset or custom)
+      - Changes are applied automatically to each camera’s control file:
+         - `indi.cpp`
+         - `qhy_ccd_test.cpp`
+         - `nikon.sh`
+
+   6) Configure sun times automation: Configures automatic dome opening/closing based on astronomical twilight times.
+
+      Twilight types available:
       - Civil twilight (sun at -6°)
       - Nautical twilight (sun at -12°)
       - Astronomical twilight (sun at -18°)
          
-   This feature uses `sun_time_broker.py` to:
+      This feature uses `sun_time_broker.py` to:
       - Calculate precise twilight times for Panama City location
       - Publish MQTT commands to ESP32 devices for dome control
       - Schedule cron jobs for automatic execution
          
-   Executed command:
+      Executed command:
       - python3 sun_time_broker.py --info <twilight_type>  # Display times
       - python3 sun_time_broker.py "" <twilight_type>      # Schedule automation
 
-   - Exit: Exits the interactive menu safely.
+   7) Exit: Exits the interactive menu safely.
 
 
 ### Topics by Camera

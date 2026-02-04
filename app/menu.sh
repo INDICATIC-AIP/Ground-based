@@ -31,6 +31,16 @@ CAMERA_SCRIPT="$SCRIPT_DIR/camera_on_off.sh"
 # Script responsible for showing camera status
 STATUS_SCRIPT="$SCRIPT_DIR/status_cameras.sh"
 
+# Camera control source files
+INDI_CPP="$SCRIPT_DIR/../INDIcode/indi.cpp"
+QHY_CPP="$SCRIPT_DIR/../INDIcode/qhy_ccd_test.cpp"
+NIKON_SH="$SCRIPT_DIR/../code/nikon.sh"
+
+# Dome control (Sun-based automation + MQTT)
+SUN_DOMO_SCRIPT="$SCRIPT_DIR/sun_time_broker.py"
+
+
+
 
 # ===============================
 # CRITICAL CHECK
@@ -194,6 +204,244 @@ camera_menu() {
     read -p "Press ENTER to continue..."
 }
 
+# ===============================
+# CAMERA EXPOSURE/TEMPERATURE
+# ===============================
+# This function controls the expuse/temperature
+
+# Convert seconds → microseconds (QHY)
+to_microseconds() {
+    echo "$(printf "%.0f" "$(echo "$1 * 1000000" | bc -l)")"
+}
+
+# Convert seconds → Nikon shutter format
+to_nikon_shutter() {
+    local s="$1"
+
+    if (( $(echo "$s >= 1" | bc -l) )); then
+        printf "%.4fs" "$s"
+    else
+        local inv
+        inv=$(printf "%.0f" "$(echo "1 / $s" | bc -l)")
+        echo "1/$inv"
+    fi
+}
+
+# Force decimal format (10 -> 10.0, -5 -> -5.0)
+to_decimal() {
+    local v="$1"
+
+    # add a .0
+    if [[ "$v" =~ ^-?[0-9]+$ ]]; then
+        echo "${v}.0"
+    else
+        echo "$v"
+    fi
+}
+
+
+
+configure_cameras() {
+    clear
+    echo "======================================"
+    echo "       CONFIGURE CAMERAS"
+    echo "======================================"
+    echo "1) All"
+    echo "2) Alpy (INDI)"
+    echo "3) QHY"
+    echo "4) Nikon"
+    echo "0) Back"
+    echo "--------------------------------------"
+    read -p "Select camera(s): " cam
+
+    case $cam in
+        1) CAMS="alpy qhy nikon" ;;
+        2) CAMS="alpy" ;;
+        3) CAMS="qhy" ;;
+        4) CAMS="nikon" ;;
+        0) return ;;
+        *) echo "Invalid Option"; sleep 1; return ;;
+    esac
+
+    echo ""
+    echo "1) Exposition / Capture"
+
+    if [[ "$CAMS" =~ "alpy" || "$CAMS" =~ "qhy" ]]; then
+        echo "2) Temperature"
+        echo "0) Back"
+        echo "--------------------------------------"
+        read -p "Select option: " opt
+        [ "$opt" = "0" ] && return
+        if [[ ! "$opt" =~ ^[12]$ ]]; then
+            echo "Invalid Option"; sleep 1; return
+        fi
+    else
+        opt=1  # only Nikon
+    fi
+
+    # -----------------------------
+    # Exposure / Capture
+    # -----------------------------
+    if [ "$opt" = "1" ]; then
+        echo ""
+        echo "1) 10 seconds"
+        echo "2) Minimum"
+        echo "3) Custom"
+        echo "--------------------------------------"
+        read -p "Select exposure: " expopt
+        case $expopt in
+            1) USER_VAL=10 ;;
+            2) USER_VAL="MIN" ;;
+            3) read -p "Enter exposure in seconds: " USER_VAL ;;
+            *) echo "Invalid Option"; sleep 1; return ;;
+        esac
+
+        for cam in $CAMS; do
+            case $cam in
+                alpy)
+                    if [ "$USER_VAL" = "MIN" ]; then VAL=0.1; else VAL=$(to_decimal "$USER_VAL"); fi
+                    sed -i "s/double ExpositionTime = .*/double ExpositionTime = $VAL;/" "$INDI_CPP"
+                    ;;
+                qhy)
+                    if [ "$USER_VAL" = "MIN" ]; then VAL=1000; else VAL=$(to_microseconds "$USER_VAL"); fi
+                    sed -i "s/int EXPOSURE_TIME = .*/int EXPOSURE_TIME = $VAL ;/" "$QHY_CPP"
+                    ;;
+                nikon)
+                    if [ "$USER_VAL" = "MIN" ]; then VAL="1/4000"; else VAL=$(to_nikon_shutter "$USER_VAL"); fi
+                    sed -i "s|gphoto2 --set-config shutterspeed=.*|gphoto2 --set-config shutterspeed=$VAL|" "$NIKON_SH"
+                    ;;
+            esac
+        done
+    fi
+
+    # -----------------------------
+    # Temperature
+    # -----------------------------
+    if [ "$opt" = "2" ]; then
+        echo ""
+        echo "1) -5.0"
+        echo "2) Custom"
+        echo "--------------------------------------"
+        read -p "Select temperature: " topt
+
+        case $topt in
+            1) TEMP=-5.0 ;;
+            2)
+                read -p "Enter temperature: " TEMP
+                TEMP=$(to_decimal "$TEMP")
+                ;;
+            *) echo "Invalid Option"; sleep 1; return ;;
+        esac
+
+        for cam in $CAMS; do
+            case $cam in
+                alpy)
+                    sed -i "s/double TargetedTemp = .*/double TargetedTemp = $TEMP;/" "$INDI_CPP"
+                    ;;
+                qhy)
+                    sed -i "s/double TargetedTemp = .*/double TargetedTemp = $TEMP ;/" "$QHY_CPP"
+                    ;;
+            esac
+        done
+    fi
+
+
+    echo ""
+    echo "✅ Configuration applied successfully"
+    read -p "Press ENTER to continue..."
+}
+
+# ===============================
+# DOME CONTROL MENU (SUN + MQTT)
+# ===============================
+# Dome actions are controlled via MQTT commands sent to
+# ESP32 devices. Automatic OPEN/CLOSE events are scheduled
+# based on solar twilight calculations:
+#
+# - Civil Twilight
+# - Nautical Twilight
+# - Astronomical Twilight
+
+dome_menu() {
+    while true; do
+        clear
+        echo "======================================"
+        echo "     ASTRONOMICAL DOME CONTROL"
+        echo "======================================"
+        echo "1) Enable AUTO (Civil Twilight)"
+        echo "2) Enable AUTO (Nautical Twilight)"
+        echo "3) Enable AUTO (Astronomical Twilight)"
+        echo "--------------------------------------"
+        echo "4) OPEN dome now"
+        echo "5) CLOSE dome now"
+        echo "--------------------------------------"
+        echo "6) Show today's sun times"
+        echo "7) Dome status (MQTT callback)"
+        echo "0) Back"
+        echo "--------------------------------------"
+        read -p "Select option: " opt
+
+        case $opt in
+            1)
+                clear
+                echo "Enabling AUTO mode (Civil Twilight)..."
+                "$SUN_DOMO_SCRIPT" auto civil
+                read -p "Press ENTER to continue..."
+                ;;
+            2)
+                clear
+                echo "Enabling AUTO mode (Nautical Twilight)..."
+                "$SUN_DOMO_SCRIPT" auto nautical
+                read -p "Press ENTER to continue..."
+                ;;
+            3)
+                clear
+                echo "Enabling AUTO mode (Astronomical Twilight)..."
+                "$SUN_DOMO_SCRIPT" auto astronomical
+                read -p "Press ENTER to continue..."
+                ;;
+            4)
+                clear
+                echo "Opening dome now..."
+                "$SUN_DOMO_SCRIPT" open civil
+                read -p "Press ENTER to continue..."
+                ;;
+            5)
+                clear
+                echo "Closing dome now..."
+                "$SUN_DOMO_SCRIPT" close civil
+                read -p "Press ENTER to continue..."
+                ;;
+            6)
+                clear
+                echo "Today's sun times:"
+                echo "------------------"
+                "$SUN_DOMO_SCRIPT" --info civil
+                echo ""
+                "$SUN_DOMO_SCRIPT" --info nautical
+                echo ""
+                "$SUN_DOMO_SCRIPT" --info astronomical
+                echo ""
+                read -p "Press ENTER to continue..."
+                ;;
+            7)
+                clear
+                echo "Listening for dome status (CTRL+C to exit)..."
+                echo ""
+                mosquitto_sub -v -t "domo/+/status"
+                read -p "Press ENTER to continue..."
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo "Invalid option"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
 
 # ===============================
 # MAIN MENU
@@ -210,6 +458,8 @@ while true; do
     echo "2) Turn cameras on"
     echo "3) Turn cameras off"
     echo "4) Camera status"
+    echo "5) Configure cameras"
+    echo "6) Dome control"
     echo "0) Exit"
     echo "------------------------------------------------"
     read -p "Select an option: " choice
@@ -222,6 +472,8 @@ while true; do
             "$STATUS_SCRIPT" status
             read -p "Press ENTER to continue..."
             ;;
+        5) configure_cameras ;;
+        6) dome_menu ;;
         0)
             echo "Exiting..."
             exit 0
