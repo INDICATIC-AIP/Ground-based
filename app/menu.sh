@@ -111,7 +111,7 @@ set_cycle_interval() {
         "$VARIABLES_FILE"
 
     echo ""
-    echo "✅ Cycle configured successfully"
+    echo "Cycle configured successfully"
     echo "Start : $start_time"
     echo "End   : $end_time"
     echo ""
@@ -177,7 +177,7 @@ camera_menu() {
 
     # User confirmation before executing
     echo ""
-    echo "⚠️  CONFIRMATION"
+    echo "CONFIRMATION"
     echo "--------------------------------------"
     echo "You are about to $action_text: $cams_text"
     echo ""
@@ -190,14 +190,14 @@ camera_menu() {
         # Check if the script failed
         if [ $? -ne 0 ]; then
             echo ""
-            echo "🚨 ERROR: action could not be executed"
+            echo "ERROR: action could not be executed"
         else
             echo ""
-            echo "✅ Action executed successfully"
+            echo "Action executed successfully"
         fi
     else
         echo ""
-        echo "❌ Action cancelled by user"
+        echo "Action cancelled by user"
     fi
 
     echo ""
@@ -347,7 +347,7 @@ configure_cameras() {
 
 
     echo ""
-    echo "✅ Configuration applied successfully"
+    echo "Configuration applied successfully"
     read -p "Press ENTER to continue..."
 }
 
@@ -444,6 +444,71 @@ dome_menu() {
 
 
 # ===============================
+# FUNCTION: CRONTAB MANAGEMENT
+# ===============================
+# Allows viewing and removing dome automation crontabs
+crontab_management() {
+    clear
+    echo "======================================"
+    echo "     CRONTAB MANAGEMENT"
+    echo "======================================"
+    
+    # Get current crontab
+    current_cron=$(crontab -l 2>/dev/null)
+    
+    if [ -z "$current_cron" ]; then
+        echo "No crontab entries found."
+        echo ""
+        read -p "Press ENTER to continue..."
+        return
+    fi
+    
+    # Filter dome-related crontabs (lines containing sun_time_broker.py)
+    dome_crontabs=$(echo "$current_cron" | grep "sun_time_broker.py")
+    
+    if [ -z "$dome_crontabs" ]; then
+        echo "No dome automation crontabs found."
+        echo ""
+        read -p "Press ENTER to continue..."
+        return
+    fi
+    
+    echo "Current dome automation crontabs:"
+    echo "----------------------------------"
+    echo "$dome_crontabs" | nl -v1
+    echo ""
+    echo "WARNING"
+    echo "----------------------------------"
+    echo "This will remove ALL dome automation crontabs."
+    echo "Other system crontabs will remain untouched."
+    echo ""
+    read -p "Do you want to remove ALL dome automation crontabs? (y/N): " confirm
+    
+    if [[ "$confirm" =~ ^[yY]$ ]]; then
+        # Remove lines containing sun_time_broker.py
+        new_cron=$(echo "$current_cron" | grep -v "sun_time_broker.py")
+        
+        # Update crontab
+        echo "$new_cron" | crontab -
+        
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "Dome automation crontabs removed successfully"
+        else
+            echo ""
+            echo "ERROR: Failed to update crontab"
+        fi
+    else
+        echo ""
+        echo "Operation cancelled by user"
+    fi
+    
+    echo ""
+    read -p "Press ENTER to continue..."
+}
+
+
+# ===============================
 # MAIN MENU
 # ===============================
 # Infinite loop until user chooses to exit
@@ -460,6 +525,7 @@ while true; do
     echo "4) Camera status"
     echo "5) Configure cameras"
     echo "6) Dome control"
+    echo "7) Crontab management"
     echo "0) Exit"
     echo "------------------------------------------------"
     read -p "Select an option: " choice
@@ -474,6 +540,7 @@ while true; do
             ;;
         5) configure_cameras ;;
         6) dome_menu ;;
+        7) crontab_management ;;
         0)
             echo "Exiting..."
             exit 0

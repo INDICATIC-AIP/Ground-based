@@ -23,16 +23,16 @@ import json
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv("/home/indicatic-e1/Desktop/.env")
+load_dotenv("/home/jjaen/Documents/indicatic/Ground-base/.env")
 
 # Location configuration (Panama City)
 CITY = LocationInfo("Panama City", "Panama", "America/Panama", 8.9833, -79.5167)
 
-# MQTT broker config - from .env
-BROKER_HOST = os.getenv("SERVER_IP")
+# MQTT broker config - from .env (try localhost first, then laptop, then server)
+BROKER_HOST = "localhost"  # Always try localhost first for local execution
 BROKER_PORT = int(os.getenv("MQTT_PORT", "1883"))
-MQTT_USER = os.getenv("SERVER_USER")  # 'user' or None
-MQTT_PASS = os.getenv("SERVER_PASSWORD")  # 'pass' or None
+MQTT_USER = os.getenv("LAPTOP_USER") or os.getenv("SERVER_USER")
+MQTT_PASS = os.getenv("LAPTOP_PASSWORD") or os.getenv("SERVER_PASSWORD")
 TOPIC = "domo/command"
 # Device IDs (your three ESP32)
 DEVICE_IDS = ["qhy", "alpy", "nikon"]
@@ -88,6 +88,9 @@ def send_command_to_esp32(cmd):
     auth = None
     if MQTT_USER and MQTT_PASS:
         auth = {"username": MQTT_USER, "password": MQTT_PASS}
+
+    print(f"Attempting to connect to MQTT broker at {BROKER_HOST}:{BROKER_PORT}")
+
     try:
         publish.single(
             TOPIC,
@@ -98,11 +101,12 @@ def send_command_to_esp32(cmd):
             keepalive=60,
         )
         print(
-            f"MQTT command '{cmd}' published to {BROKER_HOST}:{BROKER_PORT} topic {TOPIC}"
+            f"✅ MQTT command '{cmd}' published successfully to {BROKER_HOST}:{BROKER_PORT} topic {TOPIC}"
         )
         return True
     except Exception as e:
-        print(f"Error publishing to MQTT: {e}")
+        print(f"❌ Error publishing to MQTT: {e}")
+        print(f"💡 Make sure MQTT broker is running on {BROKER_HOST}:{BROKER_PORT}")
         return False
 
 
@@ -279,15 +283,15 @@ def scheduled():
     # If action is provided, use it; otherwise auto-detect
     if action and action in ["open", "close"]:
         print(f"Executing action: {action.upper()}")
-        send_command_to_esp32(action)
+        send_command_to_esp32(action, broadcast=True)
     else:
         # Auto-detect based on current time
         if now < sunset and now >= sunrise:
             print("Daytime → Executing: CLOSE dome")
-            send_command_to_esp32("close")
+            send_command_to_esp32("close", broadcast=True)
         else:
             print("Nighttime → Executing: OPEN dome")
-            send_command_to_esp32("open")
+            send_command_to_esp32("open", broadcast=True)
 
     # Schedule the next event
     schedule_next_event(sun_type=sun_type)
