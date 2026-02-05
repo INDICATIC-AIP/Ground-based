@@ -34,8 +34,10 @@ BROKER_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_USER = os.getenv("LAPTOP_USER") or os.getenv("SERVER_USER")
 MQTT_PASS = os.getenv("LAPTOP_PASSWORD") or os.getenv("SERVER_PASSWORD")
 TOPIC = "domo/command"
+
 # Device IDs (your three ESP32)
 DEVICE_IDS = ["qhy", "alpy", "nikon"]
+
 
 # Topics
 TOPIC_BROADCAST = "domo/command"
@@ -252,8 +254,8 @@ def schedule_next_event(sun_type="civil"):
 
     print(f"✓ Cron scheduled for {next_event.strftime('%Y-%m-%d %H:%M:%S')}")
 
-
 def scheduled():
+    
     """Execute scheduled action based on command line arguments.
 
     Usage:
@@ -261,40 +263,42 @@ def scheduled():
         - action: 'open' or 'close' (optional, auto-detects if not provided)
         - sun_type: 'civil', 'nautical', 'astronomical' (default: civil)
     """
+   
+    mode = "auto"
     action = None
-    sun_type = "civil"  # Default
-
-    # Parse arguments
+    sun_type = "civil" # default twilight type
+    
+    # ======= Parse CLI arguments =======
     if len(sys.argv) > 1:
-        action = sys.argv[1].lower()
+        arg = sys.argv[1].lower()
+        if arg in ["open", "close"]:
+            mode = "manual"
+            action = arg
+        elif arg == "auto":
+            mode = "auto"
+
     if len(sys.argv) > 2:
         sun_type = sys.argv[2].lower()
 
-    # Validate sun_type
     if sun_type not in ["civil", "nautical", "astronomical"]:
-        print(
-            f"ERROR: Invalid sun_type '{sun_type}'. Must be civil, nautical, or astronomical."
-        )
+        print("Invalid sun_type")
         sys.exit(1)
-
+        
+    # ======== Get sun times =========
     sunrise, sunset = get_sun_times(sun_type=sun_type)
     now = datetime.now().astimezone(sunrise.tzinfo)
 
-    # If action is provided, use it; otherwise auto-detect
-    if action and action in ["open", "close"]:
-        print(f"Executing action: {action.upper()}")
+    # ========= MANUAL =========
+    if mode == "manual":
+        print(f"[MANUAL] {action.upper()} using {sun_type} twilight")
         send_command_to_esp32(action, broadcast=True)
-    else:
-        # Auto-detect based on current time
-        if now < sunset and now >= sunrise:
-            print("Daytime → Executing: CLOSE dome")
-            send_command_to_esp32("close", broadcast=True)
-        else:
-            print("Nighttime → Executing: OPEN dome")
-            send_command_to_esp32("open", broadcast=True)
+        schedule_next_event(sun_type)
+        return
 
-    # Schedule the next event
-    schedule_next_event(sun_type=sun_type)
+    # ========= AUTO (planner only) =========
+    print(f"[AUTO] Scheduling using {sun_type} twilight (no MQTT)")
+    schedule_next_event(sun_type)
+
 
 
 def show_times_info(sun_type="civil"):
