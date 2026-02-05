@@ -429,6 +429,7 @@ dome_menu() {
                 echo "Listening for dome status (CTRL+C to exit)..."
                 echo ""
                 mosquitto_sub -v -t "domo/+/status"
+                echo ""
                 read -p "Press ENTER to continue..."
                 ;;
             0)
