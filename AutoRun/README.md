@@ -1,123 +1,202 @@
-# AutoRun
+# AutoRun — Observatory Control System
 
-This section of the interoperability code is responsible for automating tasks on the station. To do so, the script `Launch.sh` must be executed with the following command:
+Web-based control system for both ground stations. Replaces the legacy KStars/Ekos/D-Bus stack with lightweight Python applications built on **pyINDI + Tornado**.
 
-  ```bash
-  ./Launch.sh
-  ```
+---
 
-When the script is executed, any errors can be observed, such as missing drivers, whether devices like Nikon, Alpy, and QHY are detected or not, whether `indiserver` is functioning properly, etc.
+## Stations
 
-When it is required to enter `ACTUAL`, `VIEW`, or `DEFAULT`, it is recommended to set the variables `BegingDefaultAllHour`, `BegingDefaultAllMinute`, `EndDefaultAllHour`, and `EndDefaultAllMinute` to define the time at which the station should start and stop executing the interoperability code by writting `DEFAULT`.
+| Station | Cameras | Port |
+|---|---|---|
+| indicatice2 | ALPY 600 (SX CCD SX-825) + Nikon D5600 | :5906 |
+| indicatic-e1 | QHY 16200A-M (UBVRI filters) | :5905 |
 
-### **Installation Instructions**
+---
 
-To install the automatic system of email sending, follow the next instructions.
+## Architecture
 
-1. Open the SMTP port 587 for inbound/outbound traffic on the firewall with the following commands:
-
-  ```bash
-  sudo iptables -A INPUT -p tcp --dport 587 -j ACCEPT
-  ```
-and
-
-  ```bash
-  sudo iptables -A OUTPUT -p tcp --dport 587 -j ACCEPT
-  ```
-2. Updating packages and installing Postfix.
-
-  ```bash
-  sudo apt-get update && sudo apt-get upgrade
-  ```
-  ```bash
-  sudo apt-get install postfix mailutils libsasl2-2 ca-certificates libsasl2-modules
-  ```
-
-In Postfix configuration, select `Site Internet` in system mail name you can put for exemple `INDICATIC`
-
-3. Activation of the Postfix service.
-
-  ```bash
-  sudo systemctl enable postfix
-  ```
-4. Creation of the SSL certificate.
-
-  ```bash
-  sudo mkdir /etc/postfix/ssl/
-  ```
-  ```bash
-  cd /etc/postfix/ssl/
-  ```
-  ```bash
-  sudo openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout cacert-smtp-gmail.key -out cacert-smtp-gmail.pem
-  ```
-In the `tmpFiles` folder, different files can be found:  
-
-- `Country Name` – PA  
-- `State or Province Name` – PANAMA  
-- `Locality Name` – PANAMA  
-- `Organization Name` – INDICATIC
-- `Organization Unit Name` – INDICATIC
-- `Common Name` – INDICATIC
-- `Email,Adress` – leave empty
-
-5. Configuration of Postfix.
-
-  ```bash
-  sudo nano /etc/postfix/main.cf
-  ```
-Cancel the `relayhost` line, and add it above `mynetworks`.
-
-  ```bash
-  relayhost = [smtp.gmail.com]:587
-  ```
-Add this under `inet_protocols`.
-
-```bash
-smtp_sasl_auth_enable = yes
-smtp_sasl_password_maps = hash:/etc/postfix/smtp_sasl_password_map
-smtp_sasl_security_options = noanonymous
-smtp_tls_CAfile = /etc/postfix/ssl/cacert-smtp-gmail.pem
-smtp_use_tls = yes
 ```
-6. Creation of the smtp_sasl_password_map file
-   
-```bash
-sudo nano /etc/postfix/smtp_sasl_password_map
+Jetson station
+│
+├── indiserver :7624
+│     └── indi_sx_ccd  or  indi_qhy_ccd
+│
+├── app.py  (systemd user service, 24/7)
+│     ├── pyINDI TCP connection → indiserver
+│     ├── WebSocket /ws         → browser (Tornado)
+│     └── index.html            → web UI
+│
+└── Interop pipeline (triggered per image)
+      my_program (C)  →  alpy.sh / QHYCCD.sh  →  connect.sh  →  NAS
 ```
-  and add the following line in the file
 
-  ```bash
-  [smtp.gmail.com]:587 indicatic@gmail.com:sitginysxavylalv
-  ```
-  and execute the two command
+---
 
-  ```bash
-  sudo chmod 400 /etc/postfix/smtp_sasl_password_map
-  ```
+## Station 1 — indicatice2 · ALPY 600 + Nikon D5600
 
-  ```bash
-  sudo postmap /etc/postfix/smtp_sasl_password_map
-  ```
-7. Start and check the status of postfix
+**Web UI:** `http://indicatice2:5906`
 
-```bash
-sudo systemctl restart postfix
- ```
+### Files
 
-```bash
-sudo systemctl status postfix
+| File | Description |
+|---|---|
+| `alpy/app.py` | Web server + ALPY capture logic + Nikon control |
+| `alpy/index.html` | Web UI (dark theme, single-page app) |
+| `alpy/params.json` | Persistent parameters (created on first save) |
+| `alpy/nikon.sh` | Nikon D5600 continuous capture via gphoto2 |
+
+### systemd service
+
+```ini
+# ~/.config/systemd/user/alpy-control.service
+[Unit]
+Description=ALPY 600 + Nikon Web Control
+After=network.target
+
+[Service]
+ExecStartPre=/bin/bash /home/indicatice2/Desktop/AutoRun/IndiServ.sh indi_sx_ccd "SX CCD"
+ExecStart=/usr/bin/python3 /home/indicatice2/Desktop/AutoRun/alpy/app.py
+WorkingDirectory=/home/indicatice2/Desktop/AutoRun/alpy
+Restart=always
+RestartSec=15
+StandardOutput=append:/tmp/logALPY.txt
+StandardError=append:/tmp/logALPY.txt
+
+[Install]
+WantedBy=default.target
 ```
-### Installation of Tailscale
 
-  Download Tailscale and execute it
+```bash
+systemctl --user enable alpy-control
+systemctl --user start alpy-control
+systemctl --user status alpy-control
+tail -f /tmp/logALPY.txt
+```
 
-  ```bash
-  curl -fsSL https://tailscale.com/install.sh | sh
-  ```
+### Daily cycle (automatic)
 
-Once executed, connect the station to the account of `proy.ind@hotmail.com` whose password is `indicatic1`
+1. `daily_scheduler()` runs in background every 30 s, reads params from `params.json`
+2. Powers on ALPY + Nikon via Kasa smart strip 5 minutes before `start_time`
+3. At `start_time`: starts ALPY spectrometer capture loop
+4. Also at `start_time`: launches `nikon.sh` for continuous wide-field imaging
+5. At `end_time`: stops both cameras, warms CCD to 20 °C, powers off strip
 
+### Nikon D5600 notes
 
+- Camera dial must be set to **M** (Manual) mode for gphoto2 to control shutter/ISO
+- Exposure format for gphoto2: `10,0000s` (comma as decimal separator)
+- Quick capture saves to `/home/indicatice2/Desktop/ASTRODEVICES/UI/NIKON/`
+- Scheduled capture saves to `/home/indicatice2/Desktop/ASTRODEVICES/NIKONFILE/`
 
+---
 
+## Station 2 — indicatic-e1 · QHY 16200A-M
+
+**Web UI:** `http://indicatic-e1:5905`
+
+### Files
+
+| File | Description |
+|---|---|
+| `qhy/app.py` | Web server + QHY capture logic (UBVRI cycle) |
+| `qhy/index.html` | Web UI (dark theme, single-page app) |
+| `qhy/params.json` | Persistent parameters (created on first save) |
+
+### systemd service
+
+```ini
+# ~/.config/systemd/user/qhy-control.service
+[Unit]
+Description=QHY 16200A Web Control
+After=network.target
+
+[Service]
+ExecStartPre=/bin/bash /home/indicatic-e1/Desktop/AutoRun/IndiServ.sh indi_qhy_ccd "QHY"
+ExecStart=/usr/bin/python3 /home/indicatic-e1/Desktop/AutoRun/qhy/app.py
+WorkingDirectory=/home/indicatic-e1/Desktop/AutoRun/qhy
+Restart=always
+RestartSec=15
+StandardOutput=append:/tmp/logQHY.txt
+StandardError=append:/tmp/logQHY.txt
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user enable qhy-control
+systemctl --user start qhy-control
+systemctl --user status qhy-control
+tail -f /tmp/logQHY.txt
+```
+
+### Daily cycle (automatic)
+
+1. `daily_scheduler()` runs in background every 30 s, reads params from `params.json`
+2. Powers on QHY via Kasa smart strip 5 minutes before `start_time`
+3. At `start_time`: connects to indiserver, cools CCD to target temperature
+4. Once temperature is stable (±0.5 °C): runs UBVRI filter cycle until `end_time`
+5. At `end_time`: warms CCD to 20 °C, powers off strip
+
+### UBVRI capture loop
+
+```
+for each active filter (U, B, V, R, I):
+  move filter wheel → wait 45 s settle
+  expose (CCD_EXPOSURE_VALUE)
+  receive BLOB → save .raw + .fits → send JPEG preview to UI
+```
+
+### Output files
+
+Each image produces two files in `/home/indicatic-e1/Desktop/ASTRODEVICES/QHYCCDFILE/`:
+
+```
+20260505T143524U.raw   ← raw uint16 pixels (no headers)
+20260505T143524U.fits  ← FITS with full astronomical headers
+```
+
+FITS headers written: `DATE-OBS`, `INSTRUME`, `FILTER`, `EXPTIME`, `CCD-TEMP`, `GAIN`, `OFFSET`, `XBINNING`, `YBINNING`.
+
+---
+
+## Interop Pipeline (both stations)
+
+After each image is saved, `my_program` (compiled C binary) detects the new file and triggers:
+
+```
+my_program  →  alpy.sh / QHYCCD.sh  →  connect.sh  →  NAS (SFTP via lftp)
+```
+
+Source: [`../code/Interop_code/`](../code/Interop_code/)
+
+The pipeline checksums the file, encrypts the checksum, and verifies upload success on the NAS before deleting the local copy.
+
+---
+
+## Smart Strip (Kasa) — Power Control
+
+Both stations use a TP-Link Kasa smart power strip managed by `camera_on_off.sh`:
+
+```bash
+# In app/ folder (deployed to Desktop/app/ on each station)
+./camera_on_off.sh on  alpy
+./camera_on_off.sh off nikon
+./camera_on_off.sh on  qhy
+```
+
+The web apps call this script automatically at scheduled power-on/off times.
+
+---
+
+## Python Dependencies
+
+```
+tornado
+pyindi        # MMTObservatory/pyINDI — copy module to site-packages
+astropy
+Pillow
+numpy
+```
+
+See `../station-requirements.txt` for the full list.

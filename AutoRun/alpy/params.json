@@ -1,0 +1,10 @@
+{
+  "alpy_exposure": 10.0,
+  "alpy_delay": 300.0,
+  "target_temp": -5.0,
+  "start_time": "17:10",
+  "end_time": "06:30",
+  "auto_start": true,
+  "nikon_exposure": 10.0,
+  "nikon_iso": 800
+}

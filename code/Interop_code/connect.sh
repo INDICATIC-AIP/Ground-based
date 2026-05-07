@@ -32,9 +32,6 @@ Connect_To_NASS() {
 
     ############################Variables used to check the files in the NAS, for the followinf ssh, sftp connexion##############
 
-    #Get only the name of the file and not all the path
-    FileInfoCheck=$(basename "$FileInfo")
-    #FileInfochecksumCheck=$(basename "$FileInfochecksum")
     CryptFileCheck=$(basename "$CryptFile")
     
     # Check if RAW_FILE exists and prepare it for upload
@@ -127,7 +124,6 @@ if [[ "$count" != 5 ]]; then
     echo "Uploading files (with raw) - count not equal 5"
     cd "$REMOTE_DIR"
     put -- "$PAYLOAD_FILE"
-    put -- "$FileInfo"
     put -- "$CryptFile"
     put -- "$RAW_FILE_PATH"
     bye
@@ -139,7 +135,6 @@ EOF
     echo "Uploading files (no raw) - count not equal 5"
     cd "$REMOTE_DIR"
     put -- "$PAYLOAD_FILE"
-    put -- "$FileInfo"
     put -- "$CryptFile"
     bye
     exit
@@ -150,17 +145,13 @@ fi
 if [[ "$count" = 5 ]]; then
   # Add "(NewIndex)" in front of the file names
   # Extract the base names for each file
-  FileInfoRename=$(basename "$FileInfo")
-  #FileInfochecksumRename=$(basename "$FileInfochecksum")
   CryptFileRename=$(basename "$CryptFile")
 
   # Copy the files to the new directory with "(NewIndex)" prepended to the file names
   mkdir -p /home/indicatic-e1/Desktop/code/RenameFile  # Ensure the destination directory exists
 
   #Copy the files into news files that will be renamed
-  cp "$NAMEfilePayload" "/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$NAMEfilePayload"
-  cp "$FileInfo" "/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$FileInfoRename"
-  #cp "$FileInfochecksum" "/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$FileInfochecksumRename"
+  cp "$PAYLOAD_FILE" "/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$NAMEfilePayload"
   cp "$CryptFile" "/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$CryptFileRename"
   
   # Copy raw file if it exists
@@ -171,8 +162,6 @@ if [[ "$count" = 5 ]]; then
 
   # Define new variables for the renamed files
   NAMEfilePayloadToSend="/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$NAMEfilePayload"
-  FileInfoRenameToSend="/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$FileInfoRename"
-  #FileInfochecksumRenameToSend="/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$FileInfochecksumRename"
   CryptFileRenameToSend="/home/indicatic-e1/Desktop/code/RenameFile/("$NewIndex")$CryptFileRename"
   
   # Set raw file variable if it exists
@@ -182,8 +171,6 @@ if [[ "$count" = 5 ]]; then
 
   # Debugging: Print new file path
   echo "NAMEfilePayloadToSend: $NAMEfilePayloadToSend"
-  echo "FileInfoRenameToSend: $FileInfoRenameToSend"
-  #echo "FileInfochecksumRenameToSend: $FileInfochecksumRenameToSend"
   echo "CryptFileRenameToSend: $CryptFileRenameToSend"
 
   # Upload all renamed files in same lftp session to avoid latency
@@ -193,7 +180,6 @@ if [[ "$count" = 5 ]]; then
     echo "Uploading renamed files (with raw) - count equal 5"
     cd "$REMOTE_DIR"
     put -- "$NAMEfilePayloadToSend"
-    put -- "$FileInfoRenameToSend"
     put -- "$CryptFileRenameToSend"
     put -- "$RAWfileRenameToSend"
     bye
@@ -205,7 +191,6 @@ EOF
     echo "Uploading renamed files (no raw) - count equal 5"
     cd "$REMOTE_DIR"
     put -- "$NAMEfilePayloadToSend"
-    put -- "$FileInfoRenameToSend"
     put -- "$CryptFileRenameToSend"
     bye
     exit
@@ -223,7 +208,7 @@ sshpass -p "$PASSWD" ssh "$USER@$HOST" <<EOF
 cd "/var/services$REMOTE_DIR"
 
 # Build condition to check all expected files including raw if it should be there
-if [ -f "$NAMEfilePayload" ] && [ -f "$FileInfoCheck" ] && [ -f "$CryptFileCheck" ]; then
+if [ -f "$NAMEfilePayload" ] && [ -f "$CryptFileCheck" ]; then
     # If raw was sent, verify it exists too
     if [ -n "$RAW_FILE_CHECK" ]; then
         if [ -f "$RAW_FILE_CHECK" ]; then
@@ -231,7 +216,6 @@ if [ -f "$NAMEfilePayload" ] && [ -f "$FileInfoCheck" ] && [ -f "$CryptFileCheck
         else
             echo "Raw file missing. Deleting all partially uploaded files..."
             [ -f "$NAMEfilePayload" ] && rm -- "$NAMEfilePayload"
-            [ -f "$FileInfoCheck" ] && rm -- "$FileInfoCheck"
             [ -f "$CryptFileCheck" ] && rm -- "$CryptFileCheck"
         fi
     else
@@ -240,8 +224,6 @@ if [ -f "$NAMEfilePayload" ] && [ -f "$FileInfoCheck" ] && [ -f "$CryptFileCheck
 else
     echo "Some files are missing. Deleting any partially uploaded files..."
     [ -f "$NAMEfilePayload" ] && rm -- "$NAMEfilePayload"
-    [ -f "$FileInfoCheck" ] && rm -- "$FileInfoCheck"
-    #[ -f "$FileInfochecksumCheck" ] && rm -- "$FileInfochecksumCheck"
     [ -f "$CryptFileCheck" ] && rm -- "$CryptFileCheck"
     [ -f "$RAW_FILE_CHECK" ] && rm -- "$RAW_FILE_CHECK"
 fi
@@ -250,8 +232,6 @@ EOF
 fi
 
 NAMEfilePayloadToSend=$(basename "$NAMEfilePayloadToSend")
-FileInfoRenameToSend=$(basename "$FileInfoRenameToSend")
-#FileInfochecksumRenameToSend=$(basename "$FileInfochecksumRenameToSend")
 CryptFileRenameToSend=$(basename "$CryptFileRenameToSend")
 
 # Get basename for renamed raw file if it exists
@@ -268,7 +248,7 @@ if [[ "$count" = 5 ]]; then
   cd "/var/services$REMOTE_DIR"
 
   # Check all expected files including raw if it should be there
-  if [ -f "$NAMEfilePayloadToSend" ] && [ -f "$FileInfoRenameToSend" ] && [ -f "$CryptFileRenameToSend" ]; then
+  if [ -f "$NAMEfilePayloadToSend" ] && [ -f "$CryptFileRenameToSend" ]; then
       # If raw was sent, verify it exists too
       if [ -n "$RAWfileRenameToSend" ]; then
           if [ -f "$RAWfileRenameToSend" ]; then
@@ -276,7 +256,6 @@ if [[ "$count" = 5 ]]; then
           else
               echo "Renamed raw file missing. Deleting all partially uploaded files..."
               [ -f "$NAMEfilePayloadToSend" ] && rm -- "$NAMEfilePayloadToSend"
-              [ -f "$FileInfoRenameToSend" ] && rm -- "$FileInfoRenameToSend"
               [ -f "$CryptFileRenameToSend" ] && rm -- "$CryptFileRenameToSend"
           fi
       else
@@ -285,8 +264,6 @@ if [[ "$count" = 5 ]]; then
   else
       echo "Some files are missing. Deleting any partially uploaded files..."
       [ -f "$NAMEfilePayloadToSend" ] && rm -- "$NAMEfilePayloadToSend"
-      [ -f "$FileInfoRenameToSend" ] && rm -- "$FileInfoRenameToSend"
-      #[ -f "$FileInfochecksumRenameToSend" ] && rm -- "$FileInfochecksumRenameToSend"
       [ -f "$CryptFileRenameToSend" ] && rm -- "$CryptFileRenameToSend"
       [ -f "$RAWfileRenameToSend" ] && rm -- "$RAWfileRenameToSend"
   fi

@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QHY 16200A — Control</title>
+<style>
+  :root {
+    --bg:       #0d1117;
+    --panel:    #161b22;
+    --border:   #30363d;
+    --accent:   #58a6ff;
+    --green:    #3fb950;
+    --yellow:   #d29922;
+    --red:      #f85149;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --cooling:  #79c0ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ───────────────────────────────────────────── */
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+  }
+
+  .badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-idle     { background: #21262d; color: var(--muted); }
+  .badge-cooling  { background: #0d2d4a; color: var(--cooling); }
+  .badge-capturing{ background: #0d3020; color: var(--green); }
+  .badge-stopping { background: #3d2000; color: var(--yellow); }
+
+  .header-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .header-stat span { color: var(--text); font-weight: 500; }
+
+  .indi-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+  }
+  .indi-dot.ok { background: var(--green); }
+
+  header .spacer { flex: 1; }
+
+  /* ── Main layout ──────────────────────────────────────── */
+  main {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: 1fr 180px;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Left panel ───────────────────────────────────────── */
+  .left-panel {
+    grid-row: 1 / 3;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .section-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 9px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+  .btn:not(:disabled):hover { opacity: 0.85; }
+
+  .btn-start  { background: var(--green);  color: #000; }
+  .btn-stop   { background: var(--yellow); color: #000; }
+  .btn-abort  { background: var(--red);    color: #fff; }
+  .btn-single { background: #21262d; color: var(--accent); border: 1px solid var(--border); margin-top: 4px; }
+
+  .btn-group { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Form fields */
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  input[type="number"],
+  input[type="time"],
+  input[type="text"],
+  select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    padding: 5px 8px;
+    font-size: 0.82rem;
+    width: 100%;
+  }
+
+  input:focus, select:focus { outline: 1px solid var(--accent); }
+
+  .filter-checks {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .filter-checks label {
+    flex-direction: row;
+    align-items: center;
+    gap: 3px;
+    color: var(--text);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Temp quick-set */
+  .cool-row {
+    display: flex;
+    gap: 6px;
+  }
+  .cool-row input { flex: 1; }
+  .cool-row button {
+    background: #0d2d4a;
+    color: var(--cooling);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* Single-shot row */
+  .single-row {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+  }
+  .single-row select { width: 60px; }
+  .single-row input  { flex: 1; }
+
+  /* ── Filter previews ──────────────────────────────────── */
+  .preview-area {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    gap: 10px;
+    padding: 14px;
+    overflow-x: auto;
+    align-items: stretch;
+  }
+
+  .filter-card {
+    flex: 1;
+    min-width: 140px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .filter-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+
+  .filter-label {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+  }
+
+  .filter-count {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .filter-img-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0e14;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .filter-img-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .filter-placeholder {
+    color: #2d333b;
+    font-size: 2.5rem;
+    font-weight: 300;
+    user-select: none;
+  }
+
+  .filter-active-indicator {
+    height: 3px;
+    background: transparent;
+    transition: background 0.3s;
+  }
+  .filter-active-indicator.active { background: var(--accent); }
+
+  /* Filter card color accents */
+  .fc-U .filter-label { color: #c084fc; }
+  .fc-B .filter-label { color: #60a5fa; }
+  .fc-V .filter-label { color: #4ade80; }
+  .fc-R .filter-label { color: #f87171; }
+  .fc-I .filter-label { color: #fb923c; }
+
+  /* ── Log panel ────────────────────────────────────────── */
+  .log-panel {
+    grid-column: 2;
+    grid-row: 2;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .log-header {
+    padding: 6px 14px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .log-header button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.7rem;
+    cursor: pointer;
+  }
+  .log-header button:hover { color: var(--text); }
+
+  #log-output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 14px;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.72rem;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  #log-output .warn  { color: var(--yellow); }
+  #log-output .error { color: var(--red);    }
+  #log-output .ok    { color: var(--green);  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <h1>🔭 QHY 16200A</h1>
+  <span id="status-badge" class="badge badge-idle">Idle</span>
+
+  <div class="header-stat">
+    Temp:&nbsp;<span id="hdr-temp">—</span>
+  </div>
+  <div class="header-stat">
+    Filtro:&nbsp;<span id="hdr-filter">—</span>
+  </div>
+  <div class="header-stat">
+    Ciclo:&nbsp;<span id="hdr-cycle">—</span>
+  </div>
+
+  <div class="spacer"></div>
+
+  <button onclick="openPower()" style="background:#21262d;border:1px solid #30363d;border-radius:6px;
+    color:#e6edf3;padding:4px 11px;font-size:.75rem;cursor:pointer">⚡ Energía</button>
+  <button onclick="openDrawer()" style="background:#21262d;border:1px solid #30363d;border-radius:6px;
+    color:#e6edf3;padding:4px 11px;font-size:.75rem;cursor:pointer">🗂 Archivos</button>
+
+  <div class="header-stat">
+    <div id="indi-dot" class="indi-dot"></div>
+    INDI
+  </div>
+</header>
+<div id="plan-bar" style="background:#0d2d4a;color:#79c0ff;padding:5px 16px;font-size:.75rem;
+  display:none;flex-shrink:0;gap:20px;flex-wrap:wrap;align-items:center">
+  <span>📅 Plan de hoy:</span>
+  <span>🔌 Encendido: <b id="plan-poweron">—</b></span>
+  <span>▶ Inicio: <b id="plan-start">—</b></span>
+  <span>⏹ Fin: <b id="plan-end">—</b></span>
+  <span>📷 Exp: <b id="plan-exp">—</b>s</span>
+  <span>🌡 Objetivo: <b id="plan-temp">—</b>°C</span>
+  <span>⚙ Gain: <b id="plan-gain">—</b> Offset: <b id="plan-offset">—</b></span>
+  <span>🔭 Filtros: <b id="plan-filters">—</b></span>
+</div>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- ── Left panel ──────────────────────────────────────────────────────── -->
+  <aside class="left-panel">
+
+    <!-- 1. Captura rápida -->
+    <div>
+      <div class="section-title">Captura Rápida</div>
+      <div class="single-row">
+        <select id="single-filter">
+          <option>U</option><option>B</option><option selected>V</option>
+          <option>R</option><option>I</option>
+        </select>
+        <input type="number" id="single-exp" value="2" min="0.1" step="0.5" title="Exposición (s)">
+        <span style="color:var(--muted);font-size:0.75rem;white-space:nowrap">s</span>
+      </div>
+      <button class="btn btn-single" onclick="sendSingle()" style="margin-top:6px">📷 Disparar</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 2. Temperatura -->
+    <div>
+      <div class="section-title">Temperatura</div>
+      <div class="cool-row">
+        <input type="number" id="cool-temp" value="-5" min="-30" max="20" step="1">
+        <button onclick="sendCool()">Enfriar</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 3. Parámetros -->
+    <div>
+      <div class="section-title">Parámetros</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+
+        <label>Exposición (s)
+          <input type="number" id="p-exposure" value="2" min="0.1" step="0.5">
+        </label>
+
+        <label>Temperatura objetivo (°C)
+          <input type="number" id="p-temp" value="-5" min="-30" max="20" step="1">
+        </label>
+
+        <label>Hora de inicio
+          <input type="time" id="p-starttime" value="17:10">
+        </label>
+
+        <label>Hora de fin
+          <input type="time" id="p-endtime" value="06:30">
+        </label>
+
+        <label>Gain
+          <input type="number" id="p-gain" value="10" min="0" max="100">
+        </label>
+
+        <label>Offset
+          <input type="number" id="p-offset" value="140" min="0" max="1000">
+        </label>
+
+        <div>
+          <div class="section-title" style="margin-bottom:4px">Filtros</div>
+          <div class="filter-checks" id="filter-checks">
+            <label><input type="checkbox" value="U" checked> U</label>
+            <label><input type="checkbox" value="B" checked> B</label>
+            <label><input type="checkbox" value="V" checked> V</label>
+            <label><input type="checkbox" value="R" checked> R</label>
+            <label><input type="checkbox" value="I" checked> I</label>
+          </div>
+        </div>
+
+        <label style="flex-direction:row;align-items:center;gap:6px;color:var(--text)">
+          <input type="checkbox" id="p-autostart" checked>
+          Auto-inicio diario
+        </label>
+
+        <button class="btn" style="background:#21262d;border:1px solid var(--border);color:var(--accent)"
+                onclick="sendParams()">Aplicar parámetros</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 4. Acciones -->
+    <div>
+      <div class="section-title">Acciones</div>
+      <div class="btn-group">
+        <button id="btn-start" class="btn btn-start" onclick="sendStart()">▶ Iniciar ciclo</button>
+        <button id="btn-stop"  class="btn btn-stop"  onclick="sendStop()"  disabled>⏹ Detener</button>
+        <button id="btn-abort" class="btn btn-abort" onclick="sendAbort()" disabled>⚡ Abortar</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── Filter preview cards ────────────────────────────────────────────── -->
+  <div class="preview-area" id="preview-area">
+    <!-- generadas por JS -->
+  </div>
+
+  <!-- ── Log ─────────────────────────────────────────────────────────────── -->
+  <div class="log-panel">
+    <div class="log-header">
+      <span>Log</span>
+      <button onclick="clearLog()">Limpiar</button>
+    </div>
+    <div id="log-output"></div>
+  </div>
+
+</main>
+
+<!-- Drawer de archivos -->
+<div id="drawer-overlay" onclick="closeDrawer()"
+  style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none"></div>
+<div id="file-drawer" style="position:fixed;right:0;top:0;bottom:0;width:360px;
+  background:#161b22;border-left:1px solid #30363d;z-index:101;display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .25s ease">
+  <div style="padding:12px 16px;border-bottom:1px solid #30363d;display:flex;
+    justify-content:space-between;align-items:center;flex-shrink:0">
+    <h2 style="font-size:.85rem;font-weight:600">Archivos — QHY UI</h2>
+    <button onclick="closeDrawer()" style="background:none;border:none;color:#8b949e;font-size:1rem;cursor:pointer">✕</button>
+  </div>
+  <div id="file-list" style="flex:1;overflow-y:auto;padding:8px"></div>
+</div>
+
+<!-- Modal de energía -->
+<div id="power-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+  display:none;align-items:center;justify-content:center">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;width:300px">
+    <div style="padding:14px 18px;border-bottom:1px solid #30363d;display:flex;
+      justify-content:space-between;align-items:center">
+      <h2 style="font-size:.9rem;font-weight:600">⚡ Control de Energía</h2>
+      <button onclick="closePower()" style="background:none;border:none;color:#8b949e;font-size:1.1rem;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
+        <div style="font-size:.82rem">QHY 16200A<br><small style="color:#8b949e">Cámara CCD</small></div>
+        <div style="display:flex;gap:6px">
+          <button onclick="power('on',['qhy'])"
+            style="background:#0d3020;border:1px solid #3fb950;color:#3fb950;border-radius:5px;
+              padding:5px 12px;font-size:.75rem;cursor:pointer;font-weight:600">ON</button>
+          <button onclick="power('off',['qhy'])"
+            style="background:#3d1010;border:1px solid #f85149;color:#f85149;border-radius:5px;
+              padding:5px 12px;font-size:.75rem;cursor:pointer;font-weight:600">OFF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+const PROTOCOL = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL   = `${PROTOCOL}//${location.host}/ws`;
+let ws;
+let autoScroll = true;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => appendLog('[sistema] WebSocket conectado ✓', 'ok');
+  ws.onclose = e => {
+    if (e.code === 4001) { location.href = '/login'; return; }
+    appendLog('[sistema] WebSocket desconectado, reconectando...', 'warn');
+    setTimeout(connect, 3000);
+  };
+  ws.onerror = () => appendLog('[sistema] Error de WebSocket', 'error');
+  ws.onmessage = e => handleMsg(JSON.parse(e.data));
+}
+
+// Power
+function openPower()  { document.getElementById('power-modal').style.display = 'flex'; }
+function closePower() { document.getElementById('power-modal').style.display = 'none'; }
+async function power(action, devices) {
+  closePower();
+  try {
+    const r = await fetch('/power',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action,devices})});
+    const d = await r.json();
+    appendLog(`[power] ${action} ${devices.join('+')}${d.output?': '+d.output:''}`, d.ok?'ok':'error');
+  } catch(e) { appendLog(`[power] Error: ${e}`,'error'); }
+}
+
+// File drawer
+function openDrawer() {
+  document.getElementById('file-drawer').style.transform = 'translateX(0)';
+  document.getElementById('drawer-overlay').style.display = 'block';
+  loadFiles();
+}
+function closeDrawer() {
+  document.getElementById('file-drawer').style.transform = 'translateX(100%)';
+  document.getElementById('drawer-overlay').style.display = 'none';
+}
+async function loadFiles() {
+  const list = document.getElementById('file-list');
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#8b949e;font-size:.8rem">Cargando...</div>';
+  try {
+    const files = await (await fetch('/files')).json();
+    if (!files.length) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#8b949e;font-size:.8rem">Sin archivos</div>'; return; }
+    list.innerHTML = files.map(f=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #30363d">
+        <div style="flex:1;color:#e6edf3;word-break:break-all;font-size:.75rem">${f.name}</div>
+        <div style="color:#8b949e;font-size:.72rem;white-space:nowrap">${fmtSize(f.size)}</div>
+        <button onclick="delFile('${f.name}')"
+          style="background:#3d1010;border:none;border-radius:4px;color:#f85149;
+            padding:3px 7px;font-size:.7rem;cursor:pointer">✕</button>
+      </div>`).join('');
+  } catch { list.innerHTML = '<div style="padding:24px;text-align:center;color:#f85149;font-size:.8rem">Error cargando archivos</div>'; }
+}
+async function delFile(name) {
+  if (!confirm(`¿Borrar ${name}?`)) return;
+  const d = await (await fetch(`/delete?name=${encodeURIComponent(name)}`,{method:'DELETE'})).json();
+  if (d.ok) loadFiles(); else appendLog(`Error borrando ${name}`,'error');
+}
+function fmtSize(b) {
+  if (b>1048576) return (b/1048576).toFixed(1)+' MB';
+  if (b>1024)    return (b/1024).toFixed(0)+' KB';
+  return b+' B';
+}
+
+function send(data) {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify(data));
+}
+
+// ── Handlers ──────────────────────────────────────────────────────────────────
+function handleMsg(msg) {
+  if (msg.type === 'init') {
+    applyState(msg.state);
+    applyParams(msg.params);
+    if (msg.log) msg.log.forEach(l => appendLog(l));
+    applyPreviews(msg.previews);
+  } else if (msg.type === 'state') {
+    applyState(msg.state);
+    applyPreviews(msg.previews);
+  } else if (msg.type === 'log') {
+    appendLog(msg.msg);
+  }
+}
+
+// ── State rendering ───────────────────────────────────────────────────────────
+const STATUS_LABELS = {
+  idle:      'Idle',
+  cooling:   'Enfriando',
+  capturing: 'Capturando',
+  stopping:  'Deteniendo',
+};
+const STATUS_CLASSES = {
+  idle:      'badge-idle',
+  cooling:   'badge-cooling',
+  capturing: 'badge-capturing',
+  stopping:  'badge-stopping',
+};
+
+function applyState(s) {
+  // Header
+  const status = s.status || 'idle';
+  const badge  = document.getElementById('status-badge');
+  badge.textContent = STATUS_LABELS[status] || status;
+  badge.className   = 'badge ' + (STATUS_CLASSES[status] || 'badge-idle');
+
+  const hwOk = s.camera_hw_ok !== false;
+  document.getElementById('hdr-temp').textContent =
+    s.temperature != null ? `${s.temperature.toFixed(1)} °C`
+    : (s.indi_ok && !hwOk) ? '⚠ Sin señal' : '—';
+  document.getElementById('hdr-temp').style.color =
+    (s.indi_ok && !hwOk) ? '#f97316' : '';
+  document.getElementById('hdr-filter').textContent = s.filter || '—';
+  document.getElementById('hdr-cycle').textContent  = s.cycle > 0 ? s.cycle : '—';
+
+  document.getElementById('indi-dot').className = 'indi-dot' + (s.indi_ok ? ' ok' : '');
+
+  // Aviso de cámara HW apagada
+  let hwWarn = document.getElementById('hw-warn');
+  if (!hwWarn) {
+    hwWarn = document.createElement('div');
+    hwWarn.id = 'hw-warn';
+    hwWarn.style.cssText = 'background:#7c2d12;color:#fed7aa;padding:6px 14px;font-size:13px;text-align:center;display:none;';
+    document.querySelector('header')?.after(hwWarn);
+  }
+  if (s.indi_ok && !hwOk) {
+    hwWarn.textContent = '⚠  Cámara QHY sin señal — posiblemente apagada';
+    hwWarn.style.display = 'block';
+  } else {
+    hwWarn.style.display = 'none';
+  }
+
+  // Buttons
+  const running = s.running;
+  document.getElementById('btn-start').disabled = running;
+  document.getElementById('btn-stop').disabled  = !running;
+  document.getElementById('btn-abort').disabled = !running;
+
+  // Counts
+  for (const f of ['U','B','V','R','I']) {
+    const el = document.getElementById(`cnt-${f}`);
+    if (el) el.textContent = `#${s.counts?.[f] ?? 0}`;
+    const ind = document.getElementById(`ind-${f}`);
+    if (ind) ind.className = 'filter-active-indicator' + (s.filter === f ? ' active' : '');
+  }
+}
+
+function applyParams(p) {
+  if (!p) return;
+  setVal('p-exposure', p.exposure);
+  setVal('p-temp',     p.target_temp);
+  setVal('p-gain',     p.gain);
+  setVal('p-offset',   p.offset);
+  if (p.start_time)               document.getElementById('p-starttime').value   = p.start_time;
+  if (p.end_time)                 document.getElementById('p-endtime').value     = p.end_time;
+  if (p.auto_start !== undefined) document.getElementById('p-autostart').checked = p.auto_start;
+  if (p.filters) {
+    document.querySelectorAll('#filter-checks input').forEach(cb => {
+      cb.checked = p.filters.includes(cb.value);
+    });
+  }
+
+  // Barra de plan nocturno
+  const bar = document.getElementById('plan-bar');
+  if (p.auto_start && p.start_time && p.end_time) {
+    const [sh, sm] = p.start_time.split(':').map(Number);
+    const powerHH = (sm - 5 < 0 ? sh - 1 : sh).toString().padStart(2,'0');
+    const powerMM = ((sm - 5 + 60) % 60).toString().padStart(2,'0');
+    document.getElementById('plan-poweron').textContent  = `${powerHH}:${powerMM}`;
+    document.getElementById('plan-start').textContent    = p.start_time;
+    document.getElementById('plan-end').textContent      = p.end_time;
+    document.getElementById('plan-exp').textContent      = p.exposure ?? '—';
+    document.getElementById('plan-temp').textContent     = p.target_temp ?? '—';
+    document.getElementById('plan-gain').textContent     = p.gain ?? '—';
+    document.getElementById('plan-offset').textContent   = p.offset ?? '—';
+    document.getElementById('plan-filters').textContent  = p.filters ? p.filters.join(' ') : '—';
+    bar.style.display = 'flex';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function applyPreviews(pv) {
+  if (!pv) return;
+  for (const f of ['U','B','V','R','I']) {
+    const img = document.getElementById(`img-${f}`);
+    if (!img) continue;
+    if (pv[f]) {
+      img.src = `data:image/jpeg;base64,${pv[f]}`;
+      img.style.display = 'block';
+      const ph = document.getElementById(`ph-${f}`);
+      if (ph) ph.style.display = 'none';
+    }
+  }
+}
+
+// ── Build preview cards ───────────────────────────────────────────────────────
+const FILTER_COLORS = { U:'#c084fc', B:'#60a5fa', V:'#4ade80', R:'#f87171', I:'#fb923c' };
+
+function buildCards() {
+  const area = document.getElementById('preview-area');
+  area.innerHTML = '';
+  for (const f of ['U','B','V','R','I']) {
+    area.innerHTML += `
+    <div class="filter-card fc-${f}">
+      <div class="filter-active-indicator" id="ind-${f}"></div>
+      <div class="filter-card-header">
+        <span class="filter-label">${f}</span>
+        <span class="filter-count" id="cnt-${f}">#0</span>
+      </div>
+      <div class="filter-img-wrap">
+        <img id="img-${f}" style="display:none" alt="${f}">
+        <div class="filter-placeholder" id="ph-${f}">${f}</div>
+      </div>
+    </div>`;
+  }
+}
+
+// ── Commands ──────────────────────────────────────────────────────────────────
+function getParams() {
+  const filters = [...document.querySelectorAll('#filter-checks input:checked')]
+    .map(c => c.value);
+  return {
+    exposure:    parseFloat(document.getElementById('p-exposure').value),
+    target_temp: parseFloat(document.getElementById('p-temp').value),
+    gain:        parseInt(document.getElementById('p-gain').value),
+    offset:      parseInt(document.getElementById('p-offset').value),
+    start_time:  document.getElementById('p-starttime').value,
+    end_time:    document.getElementById('p-endtime').value,
+    auto_start:  document.getElementById('p-autostart').checked,
+    filters,
+  };
+}
+
+function sendStart()  { send({ cmd: 'start', params: getParams() }); }
+function sendStop()   { send({ cmd: 'stop' }); }
+function sendAbort()  { send({ cmd: 'abort' }); }
+function sendParams() { send({ cmd: 'params', params: getParams() }); appendLog('[ui] Parámetros aplicados'); }
+
+function sendCool() {
+  const t = parseFloat(document.getElementById('cool-temp').value);
+  send({ cmd: 'cool', temp: t });
+}
+
+function sendSingle() {
+  const filt = document.getElementById('single-filter').value;
+  const exp  = parseFloat(document.getElementById('single-exp').value);
+  send({ cmd: 'single', filter: filt, exposure: exp });
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+const MAX_LOG = 300;
+const logEl = document.getElementById('log-output');
+
+function appendLog(msg, cls) {
+  const cls2 = cls || (msg.includes('⚠') || msg.includes('Timeout') ? 'warn'
+                     : msg.includes('Error') || msg.includes('❌') ? 'error'
+                     : msg.includes('✓') || msg.includes('✅') ? 'ok' : '');
+  const div = document.createElement('div');
+  if (cls2) div.className = cls2;
+  div.textContent = msg;
+  logEl.appendChild(div);
+  while (logEl.children.length > MAX_LOG) logEl.removeChild(logEl.firstChild);
+  if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
+}
+
+logEl.addEventListener('scroll', () => {
+  autoScroll = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 10;
+});
+
+function clearLog() { logEl.innerHTML = ''; }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el && val != null) el.value = val;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildCards();
+connect();
+</script>
+</body>
+</html>

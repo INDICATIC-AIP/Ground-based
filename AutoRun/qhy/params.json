@@ -1,0 +1,10 @@
+{
+  "exposure": 2.0,
+  "target_temp": -5.0,
+  "gain": 10,
+  "offset": 140,
+  "filters": ["U", "B", "V", "R", "I"],
+  "start_time": "17:10",
+  "end_time": "06:30",
+  "auto_start": true
+}

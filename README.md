@@ -28,51 +28,57 @@ TESS-W/TESS-4C
 
 
 1. [AutoRun](https://github.com/INDICATIC-AIP/Ground-based/tree/main/AutoRun)
-2. [INDIcode](https://github.com/INDICATIC-AIP/Ground-based/tree/main/INDIcode)
-3. [NAScode](https://github.com/INDICATIC-AIP/Ground-based/tree/main/NAScode)
-4. [code](https://github.com/INDICATIC-AIP/Ground-based/tree/main/code)
+2. [NAScode](https://github.com/INDICATIC-AIP/Ground-based/tree/main/NAScode)
+3. [code](https://github.com/INDICATIC-AIP/Ground-based/tree/main/code)
 
 --------------------------------------------------------------------
 
-## Components ("AutoRun", "INDIcode", "NAScode", and "code").
+## Components
 
 ### [AutoRun](https://github.com/INDICATIC-AIP/Ground-based/tree/main/AutoRun)
 
-This folder contains all scripts related to the automation of the stations, allowing remote control, error detection, and other operational tasks.
+Web-based control system for both Jetson stations, built on **pyINDI + Tornado**. Each station runs a persistent Python web app (24/7 systemd service) that controls the cameras via INDI protocol and exposes a browser UI for scheduling, monitoring, and manual control.
 
-### [INDIcode](https://github.com/INDICATIC-AIP/Ground-based/tree/main/INDIcode)
+| Station | Cameras |
+|---|---|
+| indicatice2 | ALPY 600 + Nikon D5600 |
+| indicatic-e1 | QHY 16200A-M (UBVRI) |
 
-This folder contains parts of the library sourced from the INDIGO Astronomy project: (https://github.com/indigo-astronomy/indigo/blob/master/indigo_drivers/ccd_qhy/bin_externals/qhyccd/include/qhyccd.h). These components enable the C++ scripts to function properly and control the QHY 16200A and ALPY 600 devices.
+See [AutoRun/README.md](https://github.com/INDICATIC-AIP/Ground-based/tree/main/AutoRun/README.md) for full setup and operation instructions.
 
 ### [NAScode](https://github.com/INDICATIC-AIP/Ground-based/tree/main/NAScode)
 
-This folder contains the scripts used to achieve interoperability on the NAS side. File decryption and organization tasks are managed here to ensure data integrity.
+Scripts that run on the institutional NAS (Synology). Handles file decryption, integrity verification, and organisation of incoming data from both stations into the archive directory structure.
 
 ### [code](https://github.com/INDICATIC-AIP/Ground-based/tree/main/code)
 
-This folder contains the interoperability scripts within the "Interop_code" directory. The "CryptageC" folder includes all encryption scripts used to secure data transmitted to the NAS.
-Additional folders and .txt files serve as shared resources for determining NAS destinations, exchanging status information, and supporting interoperability processes.
+Station-side interoperability code. The `Interop_code/` subdirectory contains the C binary (`my_program`) and shell scripts that detect new images, generate checksums, encrypt them, and upload files to the NAS via SFTP. Also contains `converter.py` (FITS processing) and `nikon.sh` (gphoto2 wrapper for the Nikon D5600).
 
 --------------------------------------------------------------------
 
 # Installation Instructions
-Each folder contains a README explaining the functions of the scripts and specifying the required libraries. To fully install the interoperability code on a station, you must read and execute the instructions in all four folders.
-A recommended installation order is:
 
-1. code — https://github.com/INDICATIC-AIP/Ground-based/tree/main/code
-2. INDIcode — https://github.com/INDICATIC-AIP/Ground-based/tree/main/INDIcode
-3. AutoRun — https://github.com/INDICATIC-AIP/Ground-based/tree/main/AutoRun
+Before installation, ensure Linux is properly configured on the Jetson. Guidance:
+- [Initial Setup Guide for Jetson Orin Nano](https://www.jetson-ai-lab.com/initial_setup_jon.html)
 
-Before installation, ensure Linux is properly installed on the Jetson system. Guidance:
-1. Initial Setup Guide for Jetson Orin Nano:
-2. https://www.jetson-ai-lab.com/initial_setup_jon.html
-   
-After cloning this repository on the station:
-1. Move the folders "code", "INDIcode", and "AutoRun" to the Desktop.
-2. Delete the folder "NAScode" (NAS-side only).
-3. Delete the cloned folder "Ground-based" once extraction is complete.
+Clone the repository on the station and move the relevant folders to the Desktop:
 
-You can now begin installation following each module’s README.
+```bash
+git clone https://github.com/INDICATIC-AIP/Ground-base.git
+cd Ground-base
+# Rename hardcoded paths to match this station’s username:
+python3 station_rename.py
+# Then move to Desktop
+cp -r AutoRun code app ~/Desktop/
+# NAScode is for the NAS only — do not copy it to the station
+```
+
+Recommended installation order:
+
+1. [code](https://github.com/INDICATIC-AIP/Ground-based/tree/main/code) — install dependencies, compile Interop binary
+2. [AutoRun](https://github.com/INDICATIC-AIP/Ground-based/tree/main/AutoRun) — configure and start the web app as a systemd service
+
+See [AutoRun/README.md](https://github.com/INDICATIC-AIP/Ground-based/tree/main/AutoRun/README.md) for the full systemd setup.
 
 - **Python version tested:** Python 3.10.12 — the system has been tested with this interpreter version; using Python 3.10.12 is recommended for compatibility.
 
@@ -107,6 +113,25 @@ Run the script:
 python3 station_rename.py
 
 whoami
+
+# How to Cite
+
+If you use this system or build upon it in your research, please cite it as:
+
+```bibtex
+@software{indicatic_ground_based,
+  author       = {José Robles},
+  title        = {{INDICATIC Ground-Based Observatory Control System}},
+  year         = {2025},
+  publisher    = {GitHub},
+  organization = {TropicalALAN Lab PTY — INDICATIC-AIP},
+  url          = {https://github.com/INDICATIC-AIP/Ground-based},
+}
+```
+
+Or in plain text:
+
+> J. Robles, J. Jaen, A. Olivie. *INDICATIC Ground-Based Observatory Control System*. TropicalALAN Lab PTY, 2025. https://github.com/INDICATIC-AIP/Ground-based
 
 # Contact Information
 

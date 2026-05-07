@@ -16,13 +16,6 @@ execution() {
   #Creation of the Trame to be sent to the NAS
   MakeTram "$directory"
 
-  #Create text file with the name of the file sent with info.txt at the end
-  newFileName="info_${FileName%.*}.txt"
-  FileInfo="$imageInfo/$newFileName"
-
-  #Write the trame into the file
-  echo "$TrameToSend" > "$FileInfo"
-
   #Info to conenct on the NAS profile
   Log_NASS
   #Connec to NAS and send the files
@@ -41,7 +34,6 @@ execution() {
   #Move to the imageInfo directory and delete the new file
   cd "$imageInfo"
 
-  rm -- "$newFileName"
   rm -- "$newFileNamechecksum"
   rm -- "$ChecksumToCrypt"
 

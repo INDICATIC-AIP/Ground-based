@@ -12,6 +12,15 @@ directory="/home/indicatic-e1/Desktop/ASTRODEVICES/ALPYFILE"
 imageInfo="/home/indicatic-e1/Desktop/code/infoIMG"
 File=$(ls -t --reverse "$directory" | head -n 1)
 
+# Rename KStars format (2026-04-30T10-10-32_1.fits) → clean format (20260430T101032.fits)
+if [ -n "$File" ]; then
+    newname=$(echo "$File" | tr -d '-' | sed 's/_[0-9]*\.fits/.fits/')
+    if [ "$File" != "$newname" ] && [ -f "$directory/$File" ]; then
+        mv "$directory/$File" "$directory/$newname"
+        File="$newname"
+    fi
+fi
+
 read -r Station < "/home/indicatic-e1/Desktop/code/NBstation.txt" #Put the name of the station into Station variable
 echo "Path of the station is : $Station"
 

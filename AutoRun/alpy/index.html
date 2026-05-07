@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INDICATIC — ALPY 600 + Nikon D5600</title>
+<style>
+:root {
+  --bg:      #0d1117;
+  --panel:   #161b22;
+  --border:  #30363d;
+  --accent:  #58a6ff;
+  --green:   #3fb950;
+  --yellow:  #d29922;
+  --red:     #f85149;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --cool:    #79c0ff;
+  --nikon:   #fb923c;
+  --sidebar: 210px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+header{background:var(--panel);border-bottom:1px solid var(--border);
+  padding:8px 16px;display:flex;align-items:center;gap:14px;flex-shrink:0;min-height:48px}
+header h1{font-size:1rem;font-weight:700;color:var(--accent);white-space:nowrap}
+.badge{padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.badge-idle     {background:#21262d;color:var(--muted)}
+.badge-cooling  {background:#0d2d4a;color:var(--cool)}
+.badge-capturing{background:#0d3020;color:var(--green)}
+.badge-stopping {background:#3d2000;color:var(--yellow)}
+.nk-badge{padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700;
+  background:#21262d;color:var(--muted);transition:.25s}
+.nk-badge.on{background:#2d1a00;color:var(--nikon)}
+.hstat{display:flex;align-items:center;gap:5px;font-size:.8rem;color:var(--muted)}
+.hstat b{color:var(--text);font-weight:500}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0}
+.dot.ok{background:var(--green)}
+.spacer{flex:1}
+.hbtn{background:#21262d;border:1px solid var(--border);border-radius:6px;color:var(--text);
+  padding:4px 11px;font-size:.75rem;cursor:pointer;white-space:nowrap}
+.hbtn:hover{background:#2d333b}
+#hw-warn{background:#7c2d12;color:#fed7aa;padding:5px 14px;font-size:.78rem;
+  text-align:center;display:none;flex-shrink:0}
+
+main{display:grid;grid-template-columns:var(--sidebar) 1fr 1fr;
+  grid-template-rows:1fr 170px;flex:1;overflow:hidden}
+
+.sidebar{grid-row:1/3;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;padding:12px;gap:10px}
+.sec-title{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.btn{width:100%;padding:8px;border:none;border-radius:6px;font-size:.8rem;font-weight:600;
+  cursor:pointer;transition:opacity .15s}
+.btn:disabled{opacity:.3;cursor:default}
+.btn:not(:disabled):hover{opacity:.82}
+.btn-green {background:var(--green); color:#000}
+.btn-yellow{background:var(--yellow);color:#000}
+.btn-red   {background:var(--red);   color:#fff}
+.btn-ghost {background:#21262d;color:var(--accent);border:1px solid var(--border)}
+.btn-nikon {background:#2d1a00;color:var(--nikon);border:1px solid var(--border)}
+.btn-group{display:flex;flex-direction:column;gap:5px}
+label{display:flex;flex-direction:column;gap:3px;font-size:.75rem;color:var(--muted)}
+input[type=number],input[type=time]{background:var(--bg);border:1px solid var(--border);
+  border-radius:5px;color:var(--text);padding:5px 8px;font-size:.8rem;width:100%}
+input:focus{outline:1px solid var(--accent)}
+.divider{height:1px;background:var(--border);flex-shrink:0}
+.row2{display:flex;gap:6px}
+.row2 input{flex:1}
+.row2 button{background:#0d2d4a;color:var(--cool);border:1px solid var(--border);
+  border-radius:5px;padding:5px 8px;font-size:.75rem;cursor:pointer;white-space:nowrap}
+.row2 button:hover{background:#1a4a6e}
+.check-row{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text);cursor:pointer}
+
+.preview{display:flex;align-items:center;justify-content:center;
+  padding:10px;background:#070b10;overflow:hidden;position:relative}
+.preview-alpy {grid-column:2;grid-row:1;border-right:1px solid var(--border)}
+.preview-nikon{grid-column:3;grid-row:1}
+.preview img{max-width:100%;max-height:100%;object-fit:contain;border-radius:3px;display:none}
+.ph{display:flex;flex-direction:column;align-items:center;gap:10px;color:#2d333b;user-select:none}
+.ph .ico{font-size:3rem}
+.ph .lbl{font-size:.78rem;letter-spacing:.05em}
+.meta-bar{position:absolute;bottom:10px;right:10px;background:rgba(13,17,23,.85);
+  border:1px solid var(--border);border-radius:6px;padding:5px 10px;
+  font-size:.72rem;color:var(--muted);display:flex;gap:12px}
+.meta-bar b{color:var(--text)}
+.panel-label{position:absolute;top:10px;left:10px;background:rgba(13,17,23,.8);
+  border:1px solid var(--border);border-radius:5px;padding:3px 9px;
+  font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+
+.logpanel{grid-column:2/4;grid-row:2;border-top:1px solid var(--border);
+  background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.log-hdr{padding:5px 12px;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.log-hdr button{background:none;border:none;color:var(--muted);font-size:.65rem;cursor:pointer}
+.log-hdr button:hover{color:var(--text)}
+#log-out{flex:1;overflow-y:auto;padding:5px 12px;
+  font-family:'Cascadia Code','Consolas',monospace;font-size:.7rem;line-height:1.65;color:var(--muted)}
+#log-out .warn {color:var(--yellow)}
+#log-out .err  {color:var(--red)}
+#log-out .ok   {color:var(--green)}
+#log-out .nikon{color:var(--nikon)}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none}
+.overlay.open{display:block}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:360px;background:var(--panel);
+  border-left:1px solid var(--border);z-index:101;display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .25s ease}
+.drawer.open{transform:translateX(0)}
+.drawer-hdr{padding:12px 16px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.drawer-hdr h2{font-size:.85rem;font-weight:600}
+.drawer-hdr button{background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer}
+.drawer-tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border)}
+.dtab{flex:1;padding:7px;background:none;border:none;font-size:.75rem;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.dtab.active{color:var(--accent);border-bottom-color:var(--accent)}
+#file-list{flex:1;overflow-y:auto;padding:8px}
+.fitem{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;
+  border-bottom:1px solid var(--border)}
+.fitem:hover{background:#21262d}
+.fitem .fname{flex:1;color:var(--text);word-break:break-all;font-size:.75rem}
+.fitem .fsize{color:var(--muted);white-space:nowrap;font-size:.72rem}
+.fitem .fdel{background:#3d1010;border:none;border-radius:4px;color:var(--red);
+  padding:3px 7px;font-size:.7rem;cursor:pointer}
+.fitem .fdel:hover{background:#5c1616}
+.drawer-empty{padding:24px;text-align:center;color:var(--muted);font-size:.8rem}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+  display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:320px}
+.modal-hdr{padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center}
+.modal-hdr h2{font-size:.9rem;font-weight:600}
+.modal-hdr button{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer}
+.modal-body{padding:18px}
+.pwr-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--border)}
+.pwr-row:last-child{border-bottom:none}
+.pwr-label{font-size:.82rem}
+.pwr-label small{display:block;font-size:.7rem;color:var(--muted)}
+.pwr-btns{display:flex;gap:6px}
+.pwr-on {background:#0d3020;border:1px solid var(--green);color:var(--green);
+  border-radius:5px;padding:5px 12px;font-size:.75rem;cursor:pointer;font-weight:600}
+.pwr-on:hover{background:#173d28}
+.pwr-off{background:#3d1010;border:1px solid var(--red);color:var(--red);
+  border-radius:5px;padding:5px 12px;font-size:.75rem;cursor:pointer;font-weight:600}
+.pwr-off:hover{background:#5c1616}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔭 INDICATIC</h1>
+  <span id="alpy-badge" class="badge badge-idle">Idle</span>
+  <span id="nk-badge" class="nk-badge">Nikon OFF</span>
+  <div class="hstat">Temp:&nbsp;<b id="hdr-temp">—</b></div>
+  <div class="hstat">ALPY:&nbsp;<b id="hdr-count">0</b></div>
+  <div class="hstat">Nikon:&nbsp;<b id="hdr-nkcount">0</b></div>
+  <div class="spacer"></div>
+  <button class="hbtn" onclick="openPower()">⚡ Energía</button>
+  <button class="hbtn" onclick="openDrawer('alpy')">🗂 Archivos</button>
+  <div class="hstat"><div id="indi-dot" class="dot"></div>INDI</div>
+</header>
+<div id="hw-warn">⚠ SX-825 sin señal — posiblemente apagada</div>
+<div id="plan-bar" style="background:#0d2d4a;color:#79c0ff;padding:5px 16px;font-size:.75rem;
+  display:none;flex-shrink:0;gap:20px;flex-wrap:wrap;align-items:center">
+  <span>📅 Plan de hoy:</span>
+  <span>🔌 Encendido: <b id="plan-poweron">—</b></span>
+  <span>▶ Inicio: <b id="plan-start">—</b></span>
+  <span>⏹ Fin: <b id="plan-end">—</b></span>
+  <span>📷 ALPY: <b id="plan-alpy-exp">—</b>s c/pausa <b id="plan-delay">—</b>s</span>
+  <span>📷 Nikon: <b id="plan-nk-exp">—</b>s ISO<b id="plan-nk-iso">—</b></span>
+  <span>🌡 Objetivo: <b id="plan-temp">—</b>°C</span>
+</div>
+
+<main>
+
+  <aside class="sidebar">
+
+    <!-- 1. Captura Rápida -->
+    <div>
+      <div class="sec-title">Captura Rápida</div>
+      <div style="font-size:.68rem;color:var(--accent);margin-bottom:4px;font-weight:600">ALPY 600</div>
+      <label>Exposición (s)
+        <input type="number" id="single-exp" value="10" min="0.1" step="1">
+      </label>
+      <button class="btn btn-ghost" onclick="alpySingle()" style="margin-top:5px">📷 Disparar ALPY</button>
+
+      <div style="font-size:.68rem;color:var(--nikon);margin:10px 0 4px;font-weight:600">Nikon D5600</div>
+      <label>Exposición (s)
+        <input type="number" id="nk-exp" value="10" min="0.001" step="1">
+      </label>
+      <label style="margin-top:4px">ISO
+        <select id="nk-iso" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:5px 8px;font-size:.8rem;width:100%">
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="400">400</option>
+          <option value="800" selected>800</option>
+          <option value="1600">1600</option>
+          <option value="3200">3200</option>
+          <option value="6400">6400</option>
+          <option value="12800">12800</option>
+          <option value="25600">25600</option>
+        </select>
+      </label>
+      <button id="btn-nk-single" class="btn btn-nikon" onclick="nikonSingle()" style="margin-top:6px">📷 Disparar Nikon</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 2. Temperatura -->
+    <div>
+      <div class="sec-title">Temperatura</div>
+      <div class="row2">
+        <input type="number" id="cool-temp" value="-5" min="-30" max="20" step="1">
+        <button onclick="sendCool()">Enfriar</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 3. Parámetros -->
+    <div>
+      <div class="sec-title">Parámetros</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <label>Exposición CCD (s)
+          <input type="number" id="p-exp" value="10" min="1" step="1">
+        </label>
+        <label>Pausa entre capturas (s)
+          <input type="number" id="p-delay" value="300" min="0" step="10">
+        </label>
+        <label>Temperatura objetivo (°C)
+          <input type="number" id="p-temp" value="-5" min="-30" max="20" step="1">
+        </label>
+        <label>Hora de inicio
+          <input type="time" id="p-start" value="17:10">
+        </label>
+        <label>Hora de fin
+          <input type="time" id="p-end" value="06:30">
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="p-auto" checked> Auto-inicio diario
+        </label>
+        <button class="btn btn-ghost" onclick="sendParams()">Aplicar parámetros</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 4. Acciones de secuencia -->
+    <div>
+      <div class="sec-title">Acciones</div>
+      <div class="btn-group">
+        <button id="btn-start-alpy"  class="btn btn-green"  onclick="alpyStart()">▶ Iniciar ALPY</button>
+        <button id="btn-start-nikon" class="btn btn-nikon"  onclick="nikonStart()">▶ Iniciar Nikon</button>
+        <button id="btn-start-both"  class="btn"
+          style="background:#0d2a1a;color:#6ee7b7;border:1px solid #3fb950"
+          onclick="startBoth()">▶ Iniciar Ambas</button>
+      </div>
+      <div class="btn-group" style="margin-top:6px">
+        <button id="btn-stop"  class="btn btn-yellow" onclick="stopAll()"   disabled>⏹ Detener</button>
+        <button id="btn-abort" class="btn btn-red"    onclick="alpyAbort()" disabled>⚡ Abortar ALPY</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <div class="preview preview-alpy">
+    <div class="panel-label">ALPY 600 — Espectrómetro</div>
+    <img id="alpy-img" alt="ALPY preview">
+    <div class="ph" id="alpy-ph"><div class="ico">◎</div><div class="lbl">Sin imagen</div></div>
+    <div class="meta-bar">
+      <div>Imágenes:&nbsp;<b id="meta-count">0</b></div>
+      <div>Última:&nbsp;<b id="meta-last">—</b></div>
+    </div>
+  </div>
+
+  <div class="preview preview-nikon">
+    <div class="panel-label">Nikon D5600</div>
+    <img id="nikon-img" alt="Nikon preview">
+    <div class="ph" id="nikon-ph"><div class="ico">📷</div><div class="lbl">Sin imagen</div></div>
+    <div class="meta-bar">
+      <div>Capturas:&nbsp;<b id="nk-meta-count">0</b></div>
+      <div>Estado:&nbsp;<b id="nk-meta-status">—</b></div>
+    </div>
+  </div>
+
+  <div class="logpanel">
+    <div class="log-hdr">
+      <span>Registro del sistema</span>
+      <button onclick="document.getElementById('log-out').innerHTML=''">Limpiar</button>
+    </div>
+    <div id="log-out"></div>
+  </div>
+
+</main>
+
+<!-- Drawer de archivos -->
+<div class="overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="file-drawer">
+  <div class="drawer-hdr">
+    <h2>Archivos locales</h2>
+    <button onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-tabs">
+    <button class="dtab active" id="tab-alpy"  onclick="switchTab('alpy')">ALPY UI</button>
+    <button class="dtab"        id="tab-nikon" onclick="switchTab('nikon')">Nikon NEF</button>
+  </div>
+  <div id="file-list"></div>
+</div>
+
+<!-- Modal de energía -->
+<div class="modal-bg" id="power-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>⚡ Control de Energía</h2>
+      <button onclick="closePower()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="pwr-row">
+        <div class="pwr-label">ALPY (SX-825)<small>Cámara espectroscópica</small></div>
+        <div class="pwr-btns">
+          <button class="pwr-on"  onclick="power('on',['alpy'])">ON</button>
+          <button class="pwr-off" onclick="power('off',['alpy'])">OFF</button>
+        </div>
+      </div>
+      <div class="pwr-row">
+        <div class="pwr-label">Nikon D5600<small>Cámara fotométrica</small></div>
+        <div class="pwr-btns">
+          <button class="pwr-on"  onclick="power('on',['nikon'])">ON</button>
+          <button class="pwr-off" onclick="power('off',['nikon'])">OFF</button>
+        </div>
+      </div>
+      <div class="pwr-row">
+        <div class="pwr-label">Todas<small>ALPY + Nikon simultáneo</small></div>
+        <div class="pwr-btns">
+          <button class="pwr-on"  onclick="power('on',['alpy','nikon'])">ON</button>
+          <button class="pwr-off" onclick="power('off',['alpy','nikon'])">OFF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROTOCOL = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL   = `${PROTOCOL}//${location.host}/ws`;
+let ws;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen    = () => addLog('[sistema] WebSocket conectado ✓', 'ok');
+  ws.onclose   = e  => {
+    if (e.code === 4001) { location.href = '/login'; return; }
+    addLog('[sistema] Reconectando...', 'warn');
+    setTimeout(connect, 3000);
+  };
+  ws.onerror   = () => addLog('[sistema] Error WebSocket', 'err');
+  ws.onmessage = e  => handleMsg(JSON.parse(e.data));
+}
+function send(d) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(d)); }
+
+function handleMsg(m) {
+  if (m.type === 'init') {
+    applyState(m.state); applyParams(m.params);
+    if (m.params) {
+      sv('nk-exp', m.params.nikon_exposure);
+      sv('nk-iso', m.params.nikon_iso);
+    }
+    if (m.log)           m.log.forEach(l => addLog(l));
+    if (m.preview)       showAlpyImg(m.preview);
+    if (m.nikon_preview) showNikonImg(m.nikon_preview);
+  } else if (m.type === 'state') {
+    applyState(m.state);
+    if (m.preview)       showAlpyImg(m.preview);
+    if (m.nikon_preview) showNikonImg(m.nikon_preview);
+  } else if (m.type === 'log') {
+    addLog(m.msg);
+  }
+}
+
+const STATUS_LABELS  = {idle:'Idle', cooling:'Enfriando', capturing:'Capturando', stopping:'Deteniendo'};
+const STATUS_CLASSES = {idle:'badge-idle', cooling:'badge-cooling', capturing:'badge-capturing', stopping:'badge-stopping'};
+
+function applyState(s) {
+  const badge = document.getElementById('alpy-badge');
+  badge.textContent = STATUS_LABELS[s.alpy_status] || s.alpy_status;
+  badge.className   = 'badge ' + (STATUS_CLASSES[s.alpy_status] || 'badge-idle');
+
+  document.getElementById('hdr-count').textContent   = s.alpy_count  ?? 0;
+  document.getElementById('hdr-nkcount').textContent = s.nikon_count ?? 0;
+  document.getElementById('meta-count').textContent  = s.alpy_count  ?? 0;
+  document.getElementById('indi-dot').className = 'dot' + (s.indi_ok ? ' ok' : '');
+
+  const hwOk = s.camera_hw_ok !== false;
+  const tEl  = document.getElementById('hdr-temp');
+  tEl.textContent  = s.temperature != null ? `${s.temperature.toFixed(1)} °C`
+                   : (s.indi_ok && !hwOk) ? '⚠ Sin señal' : '—';
+  tEl.style.color  = (s.indi_ok && !hwOk) ? '#f97316' : '';
+  document.getElementById('hw-warn').style.display = (s.indi_ok && !hwOk) ? 'block' : 'none';
+
+  const run = s.alpy_running;
+  const nk  = s.nikon_running;
+
+  document.getElementById('btn-start-alpy').disabled  = run;
+  document.getElementById('btn-start-nikon').disabled = nk;
+  document.getElementById('btn-start-both').disabled  = run && nk;
+  document.getElementById('btn-stop').disabled         = !run && !nk;
+  document.getElementById('btn-abort').disabled        = !run;
+
+  const nb = document.getElementById('nk-badge');
+  nb.textContent = nk ? 'Nikon ON' : 'Nikon OFF';
+  nb.className   = 'nk-badge' + (nk ? ' on' : '');
+  document.getElementById('nk-meta-count').textContent  = s.nikon_count ?? 0;
+  document.getElementById('nk-meta-status').textContent = nk ? '🟠 Corriendo' : '⚫ Parado';
+  document.getElementById('btn-nk-single').disabled = nk;
+}
+
+function applyParams(p) {
+  if (!p) return;
+  sv('p-exp',   p.alpy_exposure);
+  sv('p-delay', p.alpy_delay);
+  sv('p-temp',  p.target_temp);
+  if (p.start_time) document.getElementById('p-start').value = p.start_time;
+  if (p.end_time)   document.getElementById('p-end').value   = p.end_time;
+  if (p.auto_start !== undefined) document.getElementById('p-auto').checked = p.auto_start;
+
+  // Barra de plan nocturno
+  const bar = document.getElementById('plan-bar');
+  if (p.auto_start && p.start_time && p.end_time) {
+    const [sh, sm] = p.start_time.split(':').map(Number);
+    const powerH = sh, powerM = sm - 5 < 0 ? 55 : sm - 5;
+    const powerHH = (sm - 5 < 0 ? sh - 1 : sh).toString().padStart(2,'0');
+    const powerMM = ((sm - 5 + 60) % 60).toString().padStart(2,'0');
+    document.getElementById('plan-poweron').textContent = `${powerHH}:${powerMM}`;
+    document.getElementById('plan-start').textContent   = p.start_time;
+    document.getElementById('plan-end').textContent     = p.end_time;
+    document.getElementById('plan-alpy-exp').textContent = p.alpy_exposure ?? '—';
+    document.getElementById('plan-delay').textContent   = p.alpy_delay ?? '—';
+    document.getElementById('plan-nk-exp').textContent  = p.nikon_exposure ?? '—';
+    document.getElementById('plan-nk-iso').textContent  = p.nikon_iso ?? '—';
+    document.getElementById('plan-temp').textContent    = p.target_temp ?? '—';
+    bar.style.display = 'flex';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+function sv(id, v) { const e = document.getElementById(id); if (e && v != null && document.activeElement !== e) e.value = v; }
+
+function showAlpyImg(b64) {
+  const img = document.getElementById('alpy-img'), ph = document.getElementById('alpy-ph');
+  img.src = `data:image/jpeg;base64,${b64}`;
+  img.style.display = 'block'; ph.style.display = 'none';
+  document.getElementById('meta-last').textContent =
+    new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function showNikonImg(b64) {
+  const img = document.getElementById('nikon-img'), ph = document.getElementById('nikon-ph');
+  img.src = `data:image/jpeg;base64,${b64}`;
+  img.style.display = 'block'; ph.style.display = 'none';
+}
+
+function getParams() {
+  return {
+    alpy_exposure:  parseFloat(document.getElementById('p-exp').value),
+    alpy_delay:     parseFloat(document.getElementById('p-delay').value),
+    target_temp:    parseFloat(document.getElementById('p-temp').value),
+    start_time:     document.getElementById('p-start').value,
+    end_time:       document.getElementById('p-end').value,
+    auto_start:     document.getElementById('p-auto').checked,
+    nikon_exposure: parseFloat(document.getElementById('nk-exp').value),
+    nikon_iso:      parseInt(document.getElementById('nk-iso').value),
+  };
+}
+
+function alpyStart()  { send({cmd:'alpy_start', params:getParams()}); }
+function alpyStop()   { send({cmd:'alpy_stop'}); }
+function alpyAbort()  { send({cmd:'alpy_abort'}); }
+function alpySingle() { send({cmd:'alpy_single', exposure:parseFloat(document.getElementById('single-exp').value)}); }
+function nikonStart()  { send({cmd:'nikon_start'}); }
+function nikonStop()   { send({cmd:'nikon_stop'}); }
+function nikonSingle() {
+  send({cmd:'nikon_single',
+        exposure: parseFloat(document.getElementById('nk-exp').value),
+        iso:      parseInt(document.getElementById('nk-iso').value)});
+}
+function startBoth()  { send({cmd:'alpy_start', params:getParams(), with_nikon:true}); }
+function stopAll()    { send({cmd:'alpy_stop'}); send({cmd:'nikon_stop'}); }
+function sendParams() { send({cmd:'params', params:getParams()}); addLog('[ui] Parámetros aplicados','ok'); }
+function sendCool()   { send({cmd:'cool', temp:parseFloat(document.getElementById('cool-temp').value)}); }
+
+function openPower()  { document.getElementById('power-modal').classList.add('open'); }
+function closePower() { document.getElementById('power-modal').classList.remove('open'); }
+
+async function power(action, devices) {
+  closePower();
+  try {
+    const r = await fetch('/power',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action,devices})});
+    const d = await r.json();
+    addLog(`[power] ${action} ${devices.join('+')}${d.output?': '+d.output:''}`, d.ok?'ok':'err');
+  } catch(e) { addLog(`[power] Error: ${e}`,'err'); }
+}
+
+let _drawerTab = 'alpy';
+function openDrawer(tab) {
+  _drawerTab = tab||'alpy';
+  document.getElementById('file-drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+  loadFiles();
+}
+function closeDrawer() {
+  document.getElementById('file-drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+function switchTab(t) {
+  _drawerTab = t;
+  document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  loadFiles();
+}
+async function loadFiles() {
+  const list = document.getElementById('file-list');
+  list.innerHTML = '<div class="drawer-empty">Cargando...</div>';
+  try {
+    const files = await (await fetch(`/files?dir=${_drawerTab}`)).json();
+    if (!files.length) { list.innerHTML = '<div class="drawer-empty">Sin archivos</div>'; return; }
+    list.innerHTML = files.map(f=>`
+      <div class="fitem">
+        <div class="fname">${f.name}</div>
+        <div class="fsize">${fmtSize(f.size)}</div>
+        <button class="fdel" onclick="delFile('${f.name}')">✕</button>
+      </div>`).join('');
+  } catch { list.innerHTML = '<div class="drawer-empty">Error cargando archivos</div>'; }
+}
+async function delFile(name) {
+  if (!confirm(`¿Borrar ${name}?`)) return;
+  const r = await fetch(`/delete?name=${encodeURIComponent(name)}&dir=${_drawerTab}`,{method:'DELETE'});
+  const d = await r.json();
+  if (d.ok) loadFiles(); else addLog(`Error borrando ${name}`,'err');
+}
+function fmtSize(b) {
+  if (b>1048576) return (b/1048576).toFixed(1)+' MB';
+  if (b>1024)    return (b/1024).toFixed(0)+' KB';
+  return b+' B';
+}
+
+const logEl = document.getElementById('log-out');
+let autoScroll = true;
+function addLog(msg, cls) {
+  const c = cls||(msg.includes('[Nikon]')?'nikon'
+    :msg.includes('⚠')||msg.includes('Timeout')||msg.includes('Reconect')?'warn'
+    :msg.includes('Error')||msg.includes('❌')?'err'
+    :msg.includes('✓')||msg.includes('✅')?'ok':'');
+  const d = document.createElement('div');
+  if (c) d.className = c;
+  d.textContent = msg;
+  logEl.appendChild(d);
+  while (logEl.children.length > 400) logEl.removeChild(logEl.firstChild);
+  if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
+}
+logEl.addEventListener('scroll', ()=>{
+  autoScroll = logEl.scrollTop+logEl.clientHeight >= logEl.scrollHeight-10;
+});
+connect();
+</script>
+</body>
+</html>
