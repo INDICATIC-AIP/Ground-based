@@ -498,12 +498,14 @@ async def _shutdown_alpy():
 
 # ── Nikon ─────────────────────────────────────────────────────────────────────
 _nikon_proc: asyncio.subprocess.Process | None = None
+_nikon_should_run = False   # True mientras nikon.sh debe estar corriendo
 
 async def start_nikon():
-    global _nikon_proc
+    global _nikon_proc, _nikon_should_run
     if _nikon_proc and _nikon_proc.returncode is None:
         log("[Nikon] ya corriendo")
         return
+    _nikon_should_run = True
     shutter   = _secs_to_shutter(params.get("nikon_exposure", 10.0))
     iso       = str(int(params.get("nikon_iso", 800)))
     interval  = str(int(params.get("alpy_delay", 300)))
@@ -543,7 +545,8 @@ async def _nikon_monitor():
     log("[Nikon] proceso terminado")
 
 async def stop_nikon():
-    global _nikon_proc
+    global _nikon_proc, _nikon_should_run
+    _nikon_should_run = False
     if _nikon_proc and _nikon_proc.returncode is None:
         try:
             _nikon_proc.send_signal(signal.SIGUSR1)
@@ -552,6 +555,19 @@ async def stop_nikon():
             pass
     state["nikon_running"] = False
     push_state()
+
+async def _nikon_watchdog():
+    """Relanza nikon.sh si muere mientras ALPY sigue en sesión activa."""
+    while True:
+        await asyncio.sleep(60)
+        if (
+            _nikon_should_run
+            and state["alpy_running"]
+            and not state["nikon_running"]
+            and (_nikon_proc is None or _nikon_proc.returncode is not None)
+        ):
+            log("[Nikon] Watchdog: proceso muerto, relanzando...")
+            asyncio.ensure_future(start_nikon())
 
 def _secs_to_shutter(secs: float) -> str:
     """Convierte segundos a formato gphoto2 con coma decimal (ej. 10,0000s)."""
@@ -634,6 +650,8 @@ async def daily_scheduler():
                 if not state["alpy_running"] and state["indi_ok"]:
                     _start_nikon_too = True
                     asyncio.ensure_future(alpy_capture_loop())
+                    if not state["nikon_running"]:
+                        asyncio.ensure_future(start_nikon())
 
 # ── Handlers HTTP ─────────────────────────────────────────────────────────────
 class MainHandler(INDIHandler):
@@ -852,6 +870,7 @@ if __name__ == "__main__":
     loop = tornado.ioloop.IOLoop.current()
     loop.spawn_callback(indi_connect)
     loop.spawn_callback(daily_scheduler)
+    loop.spawn_callback(_nikon_watchdog)
 
     _web_app = INDIWebApp(
         webport=WEBPORT,
