@@ -89,6 +89,15 @@ while true; do
     gphoto2 --capture-image-and-download --filename "$OUTFILE" --force-overwrite 2>&1
     STATUS=$?
 
+    # gphoto2 puede retornar 0 aunque el download falle (PTP timeout silencioso).
+    # Verificar que el archivo exista y tenga al menos 1 MB.
+    FILE_SIZE=$(stat --format=%s "$OUTFILE" 2>/dev/null || echo 0)
+    if [ "$FILE_SIZE" -lt 1000000 ]; then
+        STATUS=1
+        log "[ERROR] Archivo ausente o incompleto (${FILE_SIZE} bytes) — tratando como fallo"
+        rm -f "$OUTFILE"
+    fi
+
     if [ $STATUS -ne 0 ]; then
         FAIL_COUNT=$((FAIL_COUNT + 1))
         log "[ERROR] Fallo captura #${FAIL_COUNT} — ${OUTFILE}"

@@ -339,7 +339,7 @@
 
 <!-- ── Header ──────────────────────────────────────────────────────────────── -->
 <header>
-  <h1>🔭 QHY 16200A</h1>
+  <h1>QHY 16200A</h1>
   <span id="status-badge" class="badge badge-idle">Idle</span>
 
   <div class="header-stat">
@@ -355,9 +355,9 @@
   <div class="spacer"></div>
 
   <button onclick="openPower()" style="background:#21262d;border:1px solid #30363d;border-radius:6px;
-    color:#e6edf3;padding:4px 11px;font-size:.75rem;cursor:pointer">⚡ Energía</button>
+    color:#e6edf3;padding:4px 11px;font-size:.75rem;cursor:pointer">Energía</button>
   <button onclick="openDrawer()" style="background:#21262d;border:1px solid #30363d;border-radius:6px;
-    color:#e6edf3;padding:4px 11px;font-size:.75rem;cursor:pointer">🗂 Archivos</button>
+    color:#e6edf3;padding:4px 11px;font-size:.75rem;cursor:pointer">Archivos</button>
 
   <div class="header-stat">
     <div id="indi-dot" class="indi-dot"></div>
@@ -366,14 +366,14 @@
 </header>
 <div id="plan-bar" style="background:#0d2d4a;color:#79c0ff;padding:5px 16px;font-size:.75rem;
   display:none;flex-shrink:0;gap:20px;flex-wrap:wrap;align-items:center">
-  <span>📅 Plan de hoy:</span>
-  <span>🔌 Encendido: <b id="plan-poweron">—</b></span>
-  <span>▶ Inicio: <b id="plan-start">—</b></span>
-  <span>⏹ Fin: <b id="plan-end">—</b></span>
-  <span>📷 Exp: <b id="plan-exp">—</b>s</span>
-  <span>🌡 Objetivo: <b id="plan-temp">—</b>°C</span>
-  <span>⚙ Gain: <b id="plan-gain">—</b> Offset: <b id="plan-offset">—</b></span>
-  <span>🔭 Filtros: <b id="plan-filters">—</b></span>
+  <span>Plan de hoy:</span>
+  <span>Encendido: <b id="plan-poweron">—</b></span>
+  <span>Inicio: <b id="plan-start">—</b></span>
+  <span>Fin: <b id="plan-end">—</b></span>
+  <span>Exp: <b id="plan-exp">—</b>s</span>
+  <span>Objetivo: <b id="plan-temp">—</b>°C</span>
+  <span>Gain: <b id="plan-gain">—</b> Offset: <b id="plan-offset">—</b></span>
+  <span>Filtros: <b id="plan-filters">—</b></span>
 </div>
 
 <!-- ── Main ────────────────────────────────────────────────────────────────── -->
@@ -393,7 +393,7 @@
         <input type="number" id="single-exp" value="2" min="0.1" step="0.5" title="Exposición (s)">
         <span style="color:var(--muted);font-size:0.75rem;white-space:nowrap">s</span>
       </div>
-      <button class="btn btn-single" onclick="sendSingle()" style="margin-top:6px">📷 Disparar</button>
+      <button class="btn btn-single" onclick="sendSingle()" style="margin-top:6px">Disparar</button>
     </div>
 
     <div class="divider"></div>
@@ -467,7 +467,10 @@
       <div class="btn-group">
         <button id="btn-start" class="btn btn-start" onclick="sendStart()">▶ Iniciar ciclo</button>
         <button id="btn-stop"  class="btn btn-stop"  onclick="sendStop()"  disabled>⏹ Detener</button>
-        <button id="btn-abort" class="btn btn-abort" onclick="sendAbort()" disabled>⚡ Abortar</button>
+        <button id="btn-abort" class="btn btn-abort" onclick="sendAbort()" disabled>Abortar</button>
+        <button id="btn-restart" class="btn"
+          style="background:#21262d;border:1px solid var(--border);color:var(--muted);margin-top:4px"
+          onclick="restartService()">↺ Reiniciar INDI</button>
       </div>
     </div>
 
@@ -509,17 +512,21 @@
   <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;width:300px">
     <div style="padding:14px 18px;border-bottom:1px solid #30363d;display:flex;
       justify-content:space-between;align-items:center">
-      <h2 style="font-size:.9rem;font-weight:600">⚡ Control de Energía</h2>
+      <h2 style="font-size:.9rem;font-weight:600">Control de Energía</h2>
       <button onclick="closePower()" style="background:none;border:none;color:#8b949e;font-size:1.1rem;cursor:pointer">✕</button>
     </div>
     <div style="padding:18px">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
-        <div style="font-size:.82rem">QHY 16200A<br><small style="color:#8b949e">Cámara CCD</small></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="power-dot-qhy" style="width:9px;height:9px;border-radius:50%;background:#555;
+            flex-shrink:0;transition:background .3s" title="Estado desconocido"></div>
+          <div style="font-size:.82rem">QHY 16200A<br><small style="color:#8b949e">Cámara CCD</small></div>
+        </div>
         <div style="display:flex;gap:6px">
-          <button onclick="power('on',['qhy'])"
+          <button id="power-btn-on-qhy" onclick="power('on',['qhy'])"
             style="background:#0d3020;border:1px solid #3fb950;color:#3fb950;border-radius:5px;
               padding:5px 12px;font-size:.75rem;cursor:pointer;font-weight:600">ON</button>
-          <button onclick="power('off',['qhy'])"
+          <button id="power-btn-off-qhy" onclick="power('off',['qhy'])"
             style="background:#3d1010;border:1px solid #f85149;color:#f85149;border-radius:5px;
               padding:5px 12px;font-size:.75rem;cursor:pointer;font-weight:600">OFF</button>
         </div>
@@ -641,7 +648,7 @@ function applyState(s) {
   const hwOk = s.camera_hw_ok !== false;
   document.getElementById('hdr-temp').textContent =
     s.temperature != null ? `${s.temperature.toFixed(1)} °C`
-    : (s.indi_ok && !hwOk) ? '⚠ Sin señal' : '—';
+    : (s.indi_ok && !hwOk) ? 'Sin señal' : '—';
   document.getElementById('hdr-temp').style.color =
     (s.indi_ok && !hwOk) ? '#f97316' : '';
   document.getElementById('hdr-filter').textContent = s.filter || '—';
@@ -658,7 +665,7 @@ function applyState(s) {
     document.querySelector('header')?.after(hwWarn);
   }
   if (s.indi_ok && !hwOk) {
-    hwWarn.textContent = '⚠  Cámara QHY sin señal — posiblemente apagada';
+    hwWarn.textContent = 'Cámara QHY sin señal — posiblemente apagada';
     hwWarn.style.display = 'block';
   } else {
     hwWarn.style.display = 'none';
@@ -669,6 +676,9 @@ function applyState(s) {
   document.getElementById('btn-start').disabled = running;
   document.getElementById('btn-stop').disabled  = !running;
   document.getElementById('btn-abort').disabled = !running;
+
+  // Power state
+  if (s.power_state !== undefined) updatePowerState(s.power_state);
 
   // Counts
   for (const f of ['U','B','V','R','I']) {
@@ -764,6 +774,27 @@ function getParams() {
     auto_start:  document.getElementById('p-autostart').checked,
     filters,
   };
+}
+
+function updatePowerState(ps) {
+  const qhyOn = ps?.qhy;
+  const dot = document.getElementById('power-dot-qhy');
+  if (dot) {
+    dot.style.background = qhyOn === true ? 'var(--green)' : qhyOn === false ? 'var(--red)' : '#555';
+    dot.title = qhyOn === true ? 'Encendida' : qhyOn === false ? 'Apagada' : 'Estado desconocido';
+  }
+  const btnOn  = document.getElementById('power-btn-on-qhy');
+  const btnOff = document.getElementById('power-btn-off-qhy');
+  if (btnOn)  btnOn.disabled  = qhyOn === true;
+  if (btnOff) btnOff.disabled = qhyOn === false;
+}
+
+async function restartService() {
+  if (!confirm('¿Reiniciar el servicio INDI? La conexión se perderá unos segundos.')) return;
+  document.getElementById('btn-restart').disabled = true;
+  document.getElementById('btn-restart').textContent = '↺ Reiniciando...';
+  try { await fetch('/restart', { method: 'POST' }); } catch {}
+  appendLog('[sistema] Reiniciando servicio qhy-control...', 'warn');
 }
 
 function sendStart()  { send({ cmd: 'start', params: getParams() }); }

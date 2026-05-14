@@ -159,27 +159,27 @@ input:focus{outline:1px solid var(--accent)}
 <body>
 
 <header>
-  <h1>🔭 INDICATIC</h1>
+  <h1>INDICATIC</h1>
   <span id="alpy-badge" class="badge badge-idle">Idle</span>
   <span id="nk-badge" class="nk-badge">Nikon OFF</span>
   <div class="hstat">Temp:&nbsp;<b id="hdr-temp">—</b></div>
   <div class="hstat">ALPY:&nbsp;<b id="hdr-count">0</b></div>
   <div class="hstat">Nikon:&nbsp;<b id="hdr-nkcount">0</b></div>
   <div class="spacer"></div>
-  <button class="hbtn" onclick="openPower()">⚡ Energía</button>
-  <button class="hbtn" onclick="openDrawer('alpy')">🗂 Archivos</button>
+  <button class="hbtn" onclick="openPower()">Energía</button>
+  <button class="hbtn" onclick="openDrawer('alpy')">Archivos</button>
   <div class="hstat"><div id="indi-dot" class="dot"></div>INDI</div>
 </header>
-<div id="hw-warn">⚠ SX-825 sin señal — posiblemente apagada</div>
+<div id="hw-warn">SX-825 sin señal — posiblemente apagada</div>
 <div id="plan-bar" style="background:#0d2d4a;color:#79c0ff;padding:5px 16px;font-size:.75rem;
   display:none;flex-shrink:0;gap:20px;flex-wrap:wrap;align-items:center">
-  <span>📅 Plan de hoy:</span>
-  <span>🔌 Encendido: <b id="plan-poweron">—</b></span>
-  <span>▶ Inicio: <b id="plan-start">—</b></span>
-  <span>⏹ Fin: <b id="plan-end">—</b></span>
-  <span>📷 ALPY: <b id="plan-alpy-exp">—</b>s c/pausa <b id="plan-delay">—</b>s</span>
-  <span>📷 Nikon: <b id="plan-nk-exp">—</b>s ISO<b id="plan-nk-iso">—</b></span>
-  <span>🌡 Objetivo: <b id="plan-temp">—</b>°C</span>
+  <span>Plan de hoy:</span>
+  <span>Encendido: <b id="plan-poweron">—</b></span>
+  <span>Inicio: <b id="plan-start">—</b></span>
+  <span>Fin: <b id="plan-end">—</b></span>
+  <span>ALPY: <b id="plan-alpy-exp">—</b>s c/pausa <b id="plan-delay">—</b>s</span>
+  <span>Nikon: <b id="plan-nk-exp">—</b>s ISO<b id="plan-nk-iso">—</b></span>
+  <span>Objetivo: <b id="plan-temp">—</b>°C</span>
 </div>
 
 <main>
@@ -193,7 +193,7 @@ input:focus{outline:1px solid var(--accent)}
       <label>Exposición (s)
         <input type="number" id="single-exp" value="10" min="0.1" step="1">
       </label>
-      <button class="btn btn-ghost" onclick="alpySingle()" style="margin-top:5px">📷 Disparar ALPY</button>
+      <button class="btn btn-ghost" onclick="alpySingle()" style="margin-top:5px">Disparar ALPY</button>
 
       <div style="font-size:.68rem;color:var(--nikon);margin:10px 0 4px;font-weight:600">Nikon D5600</div>
       <label>Exposición (s)
@@ -212,7 +212,7 @@ input:focus{outline:1px solid var(--accent)}
           <option value="25600">25600</option>
         </select>
       </label>
-      <button id="btn-nk-single" class="btn btn-nikon" onclick="nikonSingle()" style="margin-top:6px">📷 Disparar Nikon</button>
+      <button id="btn-nk-single" class="btn btn-nikon" onclick="nikonSingle()" style="margin-top:6px">Disparar Nikon</button>
     </div>
 
     <div class="divider"></div>
@@ -267,8 +267,11 @@ input:focus{outline:1px solid var(--accent)}
           onclick="startBoth()">▶ Iniciar Ambas</button>
       </div>
       <div class="btn-group" style="margin-top:6px">
-        <button id="btn-stop"  class="btn btn-yellow" onclick="stopAll()"   disabled>⏹ Detener</button>
-        <button id="btn-abort" class="btn btn-red"    onclick="alpyAbort()" disabled>⚡ Abortar ALPY</button>
+        <button id="btn-stop"    class="btn btn-yellow" onclick="stopAll()"       disabled>⏹ Detener</button>
+        <button id="btn-abort"   class="btn btn-red"    onclick="alpyAbort()"     disabled>Abortar ALPY</button>
+        <button id="btn-restart" class="btn"
+          style="background:#21262d;border:1px solid var(--border);color:var(--muted);margin-top:4px"
+          onclick="restartService()">↺ Reiniciar INDI</button>
       </div>
     </div>
 
@@ -287,7 +290,7 @@ input:focus{outline:1px solid var(--accent)}
   <div class="preview preview-nikon">
     <div class="panel-label">Nikon D5600</div>
     <img id="nikon-img" alt="Nikon preview">
-    <div class="ph" id="nikon-ph"><div class="ico">📷</div><div class="lbl">Sin imagen</div></div>
+    <div class="ph" id="nikon-ph"><div class="ico">◎</div><div class="lbl">Sin imagen</div></div>
     <div class="meta-bar">
       <div>Capturas:&nbsp;<b id="nk-meta-count">0</b></div>
       <div>Estado:&nbsp;<b id="nk-meta-status">—</b></div>
@@ -322,29 +325,35 @@ input:focus{outline:1px solid var(--accent)}
 <div class="modal-bg" id="power-modal">
   <div class="modal">
     <div class="modal-hdr">
-      <h2>⚡ Control de Energía</h2>
+      <h2>Control de Energía</h2>
       <button onclick="closePower()">✕</button>
     </div>
     <div class="modal-body">
       <div class="pwr-row">
-        <div class="pwr-label">ALPY (SX-825)<small>Cámara espectroscópica</small></div>
+        <div class="pwr-label" style="display:flex;align-items:center;gap:8px">
+          <div id="power-dot-alpy" style="width:9px;height:9px;border-radius:50%;background:#555;flex-shrink:0;transition:background .3s" title="Estado desconocido"></div>
+          <div>ALPY (SX-825)<small>Cámara espectroscópica</small></div>
+        </div>
         <div class="pwr-btns">
-          <button class="pwr-on"  onclick="power('on',['alpy'])">ON</button>
-          <button class="pwr-off" onclick="power('off',['alpy'])">OFF</button>
+          <button id="power-btn-on-alpy"  class="pwr-on"  onclick="power('on',['alpy'])">ON</button>
+          <button id="power-btn-off-alpy" class="pwr-off" onclick="power('off',['alpy'])">OFF</button>
         </div>
       </div>
       <div class="pwr-row">
-        <div class="pwr-label">Nikon D5600<small>Cámara fotométrica</small></div>
+        <div class="pwr-label" style="display:flex;align-items:center;gap:8px">
+          <div id="power-dot-nikon" style="width:9px;height:9px;border-radius:50%;background:#555;flex-shrink:0;transition:background .3s" title="Estado desconocido"></div>
+          <div>Nikon D5600<small>Cámara fotométrica</small></div>
+        </div>
         <div class="pwr-btns">
-          <button class="pwr-on"  onclick="power('on',['nikon'])">ON</button>
-          <button class="pwr-off" onclick="power('off',['nikon'])">OFF</button>
+          <button id="power-btn-on-nikon"  class="pwr-on"  onclick="power('on',['nikon'])">ON</button>
+          <button id="power-btn-off-nikon" class="pwr-off" onclick="power('off',['nikon'])">OFF</button>
         </div>
       </div>
       <div class="pwr-row">
         <div class="pwr-label">Todas<small>ALPY + Nikon simultáneo</small></div>
         <div class="pwr-btns">
-          <button class="pwr-on"  onclick="power('on',['alpy','nikon'])">ON</button>
-          <button class="pwr-off" onclick="power('off',['alpy','nikon'])">OFF</button>
+          <button id="power-btn-on-all"  class="pwr-on"  onclick="power('on',['alpy','nikon'])">ON</button>
+          <button id="power-btn-off-all" class="pwr-off" onclick="power('off',['alpy','nikon'])">OFF</button>
         </div>
       </div>
     </div>
@@ -404,7 +413,7 @@ function applyState(s) {
   const hwOk = s.camera_hw_ok !== false;
   const tEl  = document.getElementById('hdr-temp');
   tEl.textContent  = s.temperature != null ? `${s.temperature.toFixed(1)} °C`
-                   : (s.indi_ok && !hwOk) ? '⚠ Sin señal' : '—';
+                   : (s.indi_ok && !hwOk) ? 'Sin señal' : '—';
   tEl.style.color  = (s.indi_ok && !hwOk) ? '#f97316' : '';
   document.getElementById('hw-warn').style.display = (s.indi_ok && !hwOk) ? 'block' : 'none';
 
@@ -421,8 +430,39 @@ function applyState(s) {
   nb.textContent = nk ? 'Nikon ON' : 'Nikon OFF';
   nb.className   = 'nk-badge' + (nk ? ' on' : '');
   document.getElementById('nk-meta-count').textContent  = s.nikon_count ?? 0;
-  document.getElementById('nk-meta-status').textContent = nk ? '🟠 Corriendo' : '⚫ Parado';
+  document.getElementById('nk-meta-status').textContent = nk ? 'Corriendo' : 'Parado';
   document.getElementById('btn-nk-single').disabled = nk;
+
+  if (s.power_state !== undefined) updatePowerState(s.power_state);
+}
+
+function updatePowerState(ps) {
+  for (const dev of ['alpy', 'nikon']) {
+    const on  = ps?.[dev];
+    const dot = document.getElementById(`power-dot-${dev}`);
+    if (dot) {
+      dot.style.background = on === true ? 'var(--green)' : on === false ? 'var(--red)' : '#555';
+      dot.title = on === true ? 'Encendida' : on === false ? 'Apagada' : 'Estado desconocido';
+    }
+    const btnOn  = document.getElementById(`power-btn-on-${dev}`);
+    const btnOff = document.getElementById(`power-btn-off-${dev}`);
+    if (btnOn)  btnOn.disabled  = on === true;
+    if (btnOff) btnOff.disabled = on === false;
+  }
+  const bothOn  = ps?.alpy === true  && ps?.nikon === true;
+  const bothOff = ps?.alpy === false && ps?.nikon === false;
+  const btnAllOn  = document.getElementById('power-btn-on-all');
+  const btnAllOff = document.getElementById('power-btn-off-all');
+  if (btnAllOn)  btnAllOn.disabled  = bothOn;
+  if (btnAllOff) btnAllOff.disabled = bothOff;
+}
+
+async function restartService() {
+  if (!confirm('¿Reiniciar el servicio INDI? La conexión se perderá unos segundos.')) return;
+  document.getElementById('btn-restart').disabled = true;
+  document.getElementById('btn-restart').textContent = '↺ Reiniciando...';
+  try { await fetch('/restart', { method: 'POST' }); } catch {}
+  addLog('[sistema] Reiniciando servicio alpy-control...', 'warn');
 }
 
 function applyParams(p) {

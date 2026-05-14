@@ -120,10 +120,9 @@ If you use this system or build upon it in your research, please cite it as:
 
 ```bibtex
 @software{indicatic_ground_based,
-  author       = {José Robles},
+  author       = {José Robles, José Jaén, Alexandre Olivie},
   title        = {{INDICATIC Ground-Based Observatory Control System}},
   year         = {2025},
-  publisher    = {GitHub},
   organization = {TropicalALAN Lab PTY — INDICATIC-AIP},
   url          = {https://github.com/INDICATIC-AIP/Ground-based},
 }
@@ -131,7 +130,11 @@ If you use this system or build upon it in your research, please cite it as:
 
 Or in plain text:
 
-> J. Robles, J. Jaen, A. Olivie. *INDICATIC Ground-Based Observatory Control System*. TropicalALAN Lab PTY, 2025. https://github.com/INDICATIC-AIP/Ground-based
+> José Robles, José Jaén, Alexandre Olivie. *INDICATIC Ground-Based Observatory Control System*. TropicalALAN Lab PTY, 2025. https://github.com/INDICATIC-AIP/Ground-based
+
+si usa los datos debe ofrecer coautoría
+
+preguntar por que sale uncalibrated en eje y de tess 4c por que sale
 
 # Contact Information
 

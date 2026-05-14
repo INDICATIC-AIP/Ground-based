@@ -6,10 +6,12 @@ Web-based control system for both ground stations. Replaces the legacy KStars/Ek
 
 ## Stations
 
-| Station | Cameras | Port |
-|---|---|---|
-| indicatice2 | ALPY 600 (SX CCD SX-825) + Nikon D5600 | :5906 |
-| indicatic-e1 | QHY 16200A-M (UBVRI filters) | :5905 |
+Both stations are **NVIDIA Jetson** boards located at **UTP** (Estación Observatorio UTP).
+
+| Station | Hardware | Cameras | Port |
+|---|---|---|---|
+| indicatice2 | Jetson | ALPY 600 (SX CCD SX-825) + Nikon D5600 | :5906 |
+| indicatic-e1 | Jetson | QHY 16200A-M (UBVRI filters) | :5905 |
 
 ---
 
@@ -186,6 +188,44 @@ Both stations use a TP-Link Kasa smart power strip managed by `camera_on_off.sh`
 ```
 
 The web apps call this script automatically at scheduled power-on/off times.
+
+---
+
+## Remote Access — Tailscale Funnel
+
+Each station exposes its web UI over the public internet via **Tailscale Funnel**.
+
+The `--bg` flag saves the config into `tailscaled`'s persistent state — it survives terminal disconnects and reboots without any extra systemd service.
+
+### Setup (run once per station)
+
+```bash
+# indicatice2
+sudo tailscale funnel --bg 5906
+
+# indicatic-e1
+sudo tailscale funnel --bg 5905
+```
+
+> **If you get "foreground listener already exists"**, reset first:
+> ```bash
+> sudo tailscale serve reset
+> sudo tailscale funnel reset
+> # then re-run the command above
+> ```
+
+### Verify
+
+```bash
+sudo tailscale funnel status
+```
+
+### URLs
+
+| Station | URL |
+|---|---|
+| indicatice2 | `https://indicatice2.<tailnet>.ts.net` |
+| indicatic-e1 | `https://indicatic-e1.<tailnet>.ts.net` |
 
 ---
 

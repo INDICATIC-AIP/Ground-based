@@ -10,7 +10,9 @@ import hashlib
 import io
 import json
 import logging
+import re
 import signal
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -132,6 +134,7 @@ state = {
     "indi_ok":       False,
     "nikon_running": False,
     "nikon_count":   0,
+    "power_state":   {"alpy": None, "nikon": None},
 }
 
 alpy_preview      = None
@@ -144,6 +147,71 @@ image_event     = asyncio.Event()
 camera_ready    = asyncio.Event()
 _log_entries: list[str] = []
 _last_auto_start_date: str | None = None
+
+# ── Kasa power status ─────────────────────────────────────────────────────────
+_KASA_BIN   = Path("/home/indicatice2/.local/bin/kasa")
+_IDX_TO_DEV = {0: "alpy", 1: "qhy", 2: "nikon"}
+
+def _load_env() -> dict:
+    env_path = Path("/home/indicatice2/Desktop/.env")
+    result = {}
+    try:
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                result[k.strip()] = v.strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return result
+
+async def _query_power_status() -> dict:
+    env = _load_env()
+    ip  = env.get("STRIP_IP", "")
+    if not ip:
+        return {}
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            str(_KASA_BIN), "--type", "strip", "--host", ip,
+            "--username", env.get("STRIP_USER", ""),
+            "--password", env.get("STRIP_PASSWORD", ""), "state",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=12)
+        output = stdout.decode(errors="ignore")
+    except Exception:
+        return {}
+    result, cur_idx = {}, None
+    for line in output.splitlines():
+        s = line.strip()
+        m = re.search(r'(?:Child|Plug)\s+(\d+)', s)
+        if m:
+            cur_idx = int(m.group(1))
+        if cur_idx is not None:
+            if re.search(r'[Ss]tate\s*[:\-]\s*ON\b', s):
+                dev = _IDX_TO_DEV.get(cur_idx)
+                if dev and dev in state["power_state"]:
+                    result[dev] = True
+            elif re.search(r'[Ss]tate\s*[:\-]\s*OFF\b', s):
+                dev = _IDX_TO_DEV.get(cur_idx)
+                if dev and dev in state["power_state"]:
+                    result[dev] = False
+    return result
+
+async def _power_status_poller():
+    await asyncio.sleep(10)
+    while True:
+        try:
+            result = await _query_power_status()
+            changed = False
+            for dev, val in result.items():
+                if state["power_state"].get(dev) != val:
+                    state["power_state"][dev] = val
+                    changed = True
+            if changed:
+                push_state()
+        except Exception:
+            pass
+        await asyncio.sleep(120)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 def log(msg: str):
@@ -406,7 +474,7 @@ async def alpy_capture_loop():
     log("=== Iniciando secuencia ALPY ===")
 
     start_dt    = get_start_datetime()
-    wait_secs   = (start_dt - datetime.now()).total_seconds()
+    wait_secs   = 0 if _in_capture_window() else (start_dt - datetime.now()).total_seconds()
     if wait_secs > 60:
         log(f"Esperando hora de inicio {params['start_time']} ({int(wait_secs//60)} min)...")
         _powered_on = False
@@ -425,13 +493,19 @@ async def alpy_capture_loop():
         if stop_alpy_event.is_set():
             await _shutdown_alpy()
             return
+    else:
+        # Ya en ventana activa (inicio inmediato o recuperación tras reinicio)
+        log("En ventana activa — encendiendo cámaras...")
+        await _run_power("on", ["alpy", "nikon"])
+        await asyncio.sleep(15)
 
     if not camera_ready.is_set():
         log("Esperando SX-825...")
         try:
             await asyncio.wait_for(camera_ready.wait(), timeout=180)
         except asyncio.TimeoutError:
-            log("❌ Timeout conectando SX-825.")
+            log("Timeout conectando SX-825 — apagando cámaras.")
+            await _run_power("off", ["alpy", "nikon"])
             state.update(alpy_running=False, alpy_status="idle")
             push_state()
             return
@@ -500,7 +574,7 @@ async def _shutdown_alpy():
 _nikon_proc: asyncio.subprocess.Process | None = None
 _nikon_should_run = False   # True mientras nikon.sh debe estar corriendo
 
-async def start_nikon():
+async def start_nikon(wait_secs: int | None = None):
     global _nikon_proc, _nikon_should_run
     if _nikon_proc and _nikon_proc.returncode is None:
         log("[Nikon] ya corriendo")
@@ -509,10 +583,14 @@ async def start_nikon():
     shutter   = _secs_to_shutter(params.get("nikon_exposure", 10.0))
     iso       = str(int(params.get("nikon_iso", 800)))
     interval  = str(int(params.get("alpy_delay", 300)))
-    start_dt  = get_start_datetime()
-    wait_secs = max(0, int((start_dt - datetime.now()).total_seconds()))
-    if wait_secs < 60:
-        wait_secs = 0
+    if wait_secs is None:
+        if _in_capture_window():
+            wait_secs = 0
+        else:
+            start_dt  = get_start_datetime()
+            wait_secs = max(0, int((start_dt - datetime.now()).total_seconds()))
+            if wait_secs < 60:
+                wait_secs = 0
     log(f"[Nikon] arrancando nikon.sh — shutter={shutter} ISO={iso} INTERVAL={interval}s wait={wait_secs}s")
     _nikon_proc = await asyncio.create_subprocess_exec(
         "bash", str(NIKON_SCRIPT), shutter, iso, interval, str(wait_secs),
@@ -567,7 +645,7 @@ async def _nikon_watchdog():
             and (_nikon_proc is None or _nikon_proc.returncode is not None)
         ):
             log("[Nikon] Watchdog: proceso muerto, relanzando...")
-            asyncio.ensure_future(start_nikon())
+            asyncio.ensure_future(start_nikon(wait_secs=0))
 
 def _secs_to_shutter(secs: float) -> str:
     """Convierte segundos a formato gphoto2 con coma decimal (ej. 10,0000s)."""
@@ -633,7 +711,7 @@ async def daily_scheduler():
             _start_nikon_too = False  # recovery: Nikon se lanza directamente abajo
             asyncio.ensure_future(alpy_capture_loop())
         if not state["nikon_running"]:
-            asyncio.ensure_future(start_nikon())
+            asyncio.ensure_future(start_nikon(wait_secs=0))
     while True:
         await asyncio.sleep(30)
         if not params.get("auto_start", True):
@@ -716,6 +794,10 @@ class PowerHandler(BaseHandler):
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
             out = stdout.decode(errors="ignore").strip()
             log(f"[Power] {action} {' '.join(devices)}: {out or 'ok'}")
+            for dev in devices:
+                if dev in state["power_state"]:
+                    state["power_state"][dev] = (action == "on")
+            push_state()
             self.write({"ok": True, "output": out})
         except Exception as e:
             self.set_status(500)
@@ -856,8 +938,23 @@ async def _run_power(action: str, devices: list):
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
         out = stdout.decode(errors="ignore").strip()
         log(f"[Power] {action} {' '.join(devices)}: {out or 'ok'}")
+        for dev in devices:
+            if dev in state["power_state"]:
+                state["power_state"][dev] = (action == "on")
+        push_state()
     except Exception as e:
         log(f"[Power] Error: {e}")
+
+
+class RestartHandler(BaseHandler):
+    @tornado.web.authenticated
+    async def post(self):
+        self.set_header("Content-Type", "application/json")
+        self.finish(json.dumps({"ok": True}))
+        subprocess.Popen(
+            ["bash", "-c", "sleep 2 && systemctl --user restart alpy-control"],
+            start_new_session=True,
+        )
 
 
 if __name__ == "__main__":
@@ -871,6 +968,7 @@ if __name__ == "__main__":
     loop.spawn_callback(indi_connect)
     loop.spawn_callback(daily_scheduler)
     loop.spawn_callback(_nikon_watchdog)
+    loop.spawn_callback(_power_status_poller)
 
     _web_app = INDIWebApp(
         webport=WEBPORT,
@@ -892,6 +990,7 @@ if __name__ == "__main__":
             (r"/delete",        DeleteHandler),
             (r"/power",         PowerHandler),
             (r"/nikon_preview", NikonPreviewHandler),
+            (r"/restart",       RestartHandler),
         ],
         cookie_secret=_cookie_secret(),
         login_url="/login",

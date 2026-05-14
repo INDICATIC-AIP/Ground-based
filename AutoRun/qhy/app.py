@@ -10,6 +10,8 @@ import hashlib
 import io
 import json
 import logging
+import re
+import subprocess
 import time as _time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -137,6 +139,7 @@ state = {
     "cycle":        0,
     "counts":       {f: 0 for f in FILTER_SLOTS},
     "indi_ok":      False,
+    "power_state":  {"qhy": None},
 }
 
 previews            = {f: None for f in FILTER_SLOTS}
@@ -150,6 +153,74 @@ _log_entries: list[str] = []
 _last_logged_temp: float | None = None
 _last_temp_log_ts: float        = 0.0
 _camera_usb_present: bool       = True
+
+# ── Kasa power status ─────────────────────────────────────────────────────────
+_KASA_BIN   = Path("/home/indicatic-e1/.local/bin/kasa")
+_IDX_TO_DEV = {0: "alpy", 1: "qhy", 2: "nikon"}
+
+def _load_env() -> dict:
+    env_path = Path("/home/indicatic-e1/Desktop/.env")
+    result = {}
+    try:
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                result[k.strip()] = v.strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return result
+
+async def _query_power_status() -> dict:
+    env = _load_env()
+    ip  = env.get("STRIP_IP", "")
+    if not ip:
+        return {}
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            str(_KASA_BIN), "--type", "strip", "--host", ip,
+            "--username", env.get("STRIP_USER", ""),
+            "--password", env.get("STRIP_PASSWORD", ""), "state",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=12)
+        output = stdout.decode(errors="ignore")
+    except Exception:
+        return {}
+    result, cur_idx = {}, None
+    for line in output.splitlines():
+        s = line.strip()
+        m = re.search(r'(?:Child|Plug)\s+(\d+)', s)
+        if m:
+            cur_idx = int(m.group(1))
+        if cur_idx is not None:
+            if re.search(r'[Ss]tate\s*[:\-]\s*ON\b', s):
+                dev = _IDX_TO_DEV.get(cur_idx)
+                if dev:
+                    result[dev] = True
+            elif re.search(r'[Ss]tate\s*[:\-]\s*OFF\b', s):
+                dev = _IDX_TO_DEV.get(cur_idx)
+                if dev:
+                    result[dev] = False
+    return result
+
+async def _power_status_poller():
+    await asyncio.sleep(10)
+    while True:
+        try:
+            result = await _query_power_status()
+            changed = False
+            for dev, val in result.items():
+                if dev in state["power_state"] and state["power_state"][dev] != val:
+                    state["power_state"][dev] = val
+                    changed = True
+                elif dev in state["power_state"] and state["power_state"][dev] is None:
+                    state["power_state"][dev] = val
+                    changed = True
+            if changed:
+                push_state()
+        except Exception:
+            pass
+        await asyncio.sleep(120)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 def log(msg: str):
@@ -437,7 +508,7 @@ async def capture_loop():
 
     POWER_ON_MINS = 5
     start_dt  = get_start_datetime()
-    wait_secs = (start_dt - datetime.now()).total_seconds()
+    wait_secs = 0 if _in_capture_window() else (start_dt - datetime.now()).total_seconds()
     if wait_secs > 60:
         log(f"Esperando hora de inicio {params['start_time']} ({int(wait_secs//60)} min)...")
         _powered_on = False
@@ -453,13 +524,19 @@ async def capture_loop():
         if stop_event.is_set():
             await _shutdown()
             return
+    else:
+        # Ya en ventana activa (inicio inmediato o recuperación tras reinicio)
+        log("En ventana activa — encendiendo cámara QHY...")
+        await _run_power("on", ["qhy"])
+        await asyncio.sleep(15)
 
     if not camera_ready.is_set():
         log("Esperando cámara QHY...")
         try:
             await asyncio.wait_for(camera_ready.wait(), timeout=180)
         except asyncio.TimeoutError:
-            log("❌ Timeout conectando cámara. Abortando.")
+            log("Timeout conectando cámara QHY — apagando.")
+            await _run_power("off", ["qhy"])
             state.update(running=False, status="idle")
             return
 
@@ -603,6 +680,10 @@ class PowerHandler(BaseHandler):
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
             out = stdout.decode(errors="ignore").strip()
             log(f"[Power] {action} {' '.join(devices)}: {out or 'ok'}")
+            for dev in devices:
+                if dev in state["power_state"]:
+                    state["power_state"][dev] = (action == "on")
+            push_state()
             self.write({"ok": True, "output": out})
         except Exception as e:
             self.set_status(500)
@@ -710,8 +791,23 @@ async def _run_power(action: str, devices: list):
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
         log(f"[Power] {action} {' '.join(devices)}: {stdout.decode(errors='ignore').strip() or 'ok'}")
+        for dev in devices:
+            if dev in state["power_state"]:
+                state["power_state"][dev] = (action == "on")
+        push_state()
     except Exception as e:
         log(f"[Power] Error: {e}")
+
+
+class RestartHandler(BaseHandler):
+    @tornado.web.authenticated
+    async def post(self):
+        self.set_header("Content-Type", "application/json")
+        self.finish(json.dumps({"ok": True}))
+        subprocess.Popen(
+            ["bash", "-c", "sleep 2 && systemctl --user restart qhy-control"],
+            start_new_session=True,
+        )
 
 
 if __name__ == "__main__":
@@ -725,6 +821,7 @@ if __name__ == "__main__":
     loop = tornado.ioloop.IOLoop.current()
     loop.spawn_callback(indi_connect)
     loop.spawn_callback(daily_scheduler)
+    loop.spawn_callback(_power_status_poller)
 
     _web_app = INDIWebApp(
         webport=WEBPORT,
@@ -735,12 +832,13 @@ if __name__ == "__main__":
     logging.info(f"QHY Control arrancando en http://0.0.0.0:{WEBPORT}")
     _web_app.build_app(
         [
-            (r"/login",  LoginHandler),
-            (r"/",       MainHandler),
-            (r"/ws",     CtrlWS),
-            (r"/files",  FilesHandler),
-            (r"/delete", DeleteHandler),
-            (r"/power",  PowerHandler),
+            (r"/login",   LoginHandler),
+            (r"/",        MainHandler),
+            (r"/ws",      CtrlWS),
+            (r"/files",   FilesHandler),
+            (r"/delete",  DeleteHandler),
+            (r"/power",   PowerHandler),
+            (r"/restart", RestartHandler),
         ],
         cookie_secret=_cookie_secret(),
         login_url="/login",
