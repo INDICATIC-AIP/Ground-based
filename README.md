@@ -132,9 +132,6 @@ Or in plain text:
 
 > José Robles, José Jaén, Alexandre Olivie. *INDICATIC Ground-Based Observatory Control System*. TropicalALAN Lab PTY, 2025. https://github.com/INDICATIC-AIP/Ground-based
 
-si usa los datos debe ofrecer coautoría
-
-preguntar por que sale uncalibrated en eje y de tess 4c por que sale
 
 # Contact Information
 
